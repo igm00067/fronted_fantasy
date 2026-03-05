@@ -10,17 +10,21 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-
+  http: ^1.2.0
   cupertino_icons: ^1.0.6
-
+  shared_preferences: ^2.2.2  # Para guardar el token
+  flutter_secure_storage: ^9.0.0  # Para almacenamiento seguro
+  timeago: ^3.6.1
+  
   # 📦 Añadido para poder usar MultiProvider y Provider
   provider: ^6.1.2
+  cached_network_image: ^3.3.0
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
 
-  flutter_lints: ^3.0.0
+  flutter_lints: ^4.0.0
 
 flutter:
   uses-material-design: true

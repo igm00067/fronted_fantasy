@@ -259,9 +259,9 @@ class _LeagueCard extends StatelessWidget {
                     ),
                   ),
                   Text(
-                    '$points pts',
+                    '$points ptos',
                     style: TextStyle(
-                      color: Colors.grey[600],
+                      color: Colors.grey[500],
                       fontSize: 12,
                     ),
                   ),
