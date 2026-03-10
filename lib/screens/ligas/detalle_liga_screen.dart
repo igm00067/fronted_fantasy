@@ -6,6 +6,7 @@ import 'mi_equipo_screen.dart';
 import 'mercado_screen.dart';
 import 'clasificacion_liga_screen.dart';
 import 'historial_mercado_screen.dart';
+import '../chat/chat_liga_screen.dart';
 
 class DetalleLigaScreen extends StatefulWidget {
   final Map<String, dynamic> liga;
@@ -30,15 +31,14 @@ class _DetalleLigaScreenState extends State<DetalleLigaScreen> {
     _screens = [
       DashboardLigaTab(
         ligaId: widget.liga['id'],
-        onNavigateToMercado: () {
-          setState(() => _selectedIndex = 2);
-        },
+        onNavigateToMercado: () => setState(() => _selectedIndex = 2),
       ),
       MiEquipoScreen(ligaId: widget.liga['id']),
       MercadoScreen(
           ligaId: widget.liga['id'],
           competicionId: widget.liga['competicion_id']),
       ClasificacionLigaScreen(ligaId: widget.liga['id']),
+      ChatLigaScreen(ligaId: widget.liga['id']),
     ];
   }
 
@@ -57,27 +57,19 @@ class _DetalleLigaScreenState extends State<DetalleLigaScreen> {
       body: _screens[_selectedIndex],
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _selectedIndex,
-        onTap: (index) {
-          setState(() => _selectedIndex = index);
-        },
+        onTap: (index) => setState(() => _selectedIndex = index),
         type: BottomNavigationBarType.fixed,
+        selectedFontSize: 12,
+        unselectedFontSize: 12,
         items: const [
+          BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Inicio'),
+          BottomNavigationBarItem(icon: Icon(Icons.shield), label: 'Mi Equipo'),
           BottomNavigationBarItem(
-            icon: Icon(Icons.home),
-            label: 'Inicio',
-          ),
+              icon: Icon(Icons.shopping_cart), label: 'Mercado'),
           BottomNavigationBarItem(
-            icon: Icon(Icons.shield),
-            label: 'Mi Equipo',
-          ),
+              icon: Icon(Icons.emoji_events), label: 'Clasificación'),
           BottomNavigationBarItem(
-            icon: Icon(Icons.shopping_cart),
-            label: 'Mercado',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.emoji_events),
-            label: 'Clasificación',
-          ),
+              icon: Icon(Icons.chat_bubble), label: 'Chat'), // ← AÑADIR
         ],
       ),
     );

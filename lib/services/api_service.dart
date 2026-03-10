@@ -450,6 +450,65 @@ static Future<List<dynamic>> getHistorialMercado(int ligaId) async {
   }
 }
 
+// ==================== CHAT ====================
+
+static Future<List<dynamic>> getConversaciones(int ligaId) async {
+  try {
+    final authHeaders = await getAuthHeaders();
+    final response = await http.get(
+      Uri.parse('$baseUrl/chat/conversaciones/$ligaId'),
+      headers: authHeaders,
+    );
+
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body);
+    } else {
+      throw Exception('Error al obtener conversaciones: ${response.statusCode}');
+    }
+  } catch (e) {
+    throw Exception('Error de conexión: $e');
+  }
+}
+
+static Future<Map<String, dynamic>> getOCrearConversacion({
+  required int otroUsuarioId,
+  required int ligaId,
+}) async {
+  try {
+    final authHeaders = await getAuthHeaders();
+    final response = await http.get(
+      Uri.parse('$baseUrl/chat/conversacion/$otroUsuarioId/$ligaId'),
+      headers: authHeaders,
+    );
+
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body);
+    } else {
+      throw Exception('Error al obtener conversación: ${response.statusCode}');
+    }
+  } catch (e) {
+    throw Exception('Error de conexión: $e');
+  }
+}
+
+static Future<List<dynamic>> getMensajes(int conversacionId) async {
+  try {
+    final authHeaders = await getAuthHeaders();
+    final response = await http.get(
+      Uri.parse('$baseUrl/chat/mensajes/$conversacionId'),
+      headers: authHeaders,
+    );
+
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body);
+    } else {
+      throw Exception('Error al obtener mensajes: ${response.statusCode}');
+    }
+  } catch (e) {
+    throw Exception('Error de conexión: $e');
+  }
+}
+
 
   // Método de prueba
   static Future<bool> testConexion() async {

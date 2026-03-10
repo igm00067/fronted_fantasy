@@ -15,6 +15,7 @@ dependencies:
   shared_preferences: ^2.2.2  # Para guardar el token
   flutter_secure_storage: ^9.0.0  # Para almacenamiento seguro
   timeago: ^3.6.1
+  socket_io_client: ^2.0.3+1
   
   # 📦 Añadido para poder usar MultiProvider y Provider
   provider: ^6.1.2

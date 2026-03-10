@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../../../providers/auth_provider.dart';
+import '../../providers/auth_provider.dart';
+import '../../services/socket_service.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({Key? key}) : super(key: key);
@@ -40,12 +41,20 @@ class _LoginScreenState extends State<LoginScreen> {
           email: _emailController.text.trim(),
           password: _passwordController.text,
         );
+        
+        // Conectar WebSocket después del login exitoso
+        await SocketService.connect();
+        print('✅ Socket conectado después del login');
       } else {
         await authProvider.register(
           nombre: _nombreController.text.trim(),
           email: _emailController.text.trim(),
           password: _passwordController.text,
         );
+        
+        // Conectar WebSocket después del registro exitoso
+        await SocketService.connect();
+        print('✅ Socket conectado después del registro');
       }
 
       if (mounted) {

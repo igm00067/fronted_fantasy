@@ -1,15 +1,17 @@
 import 'package:flutter/material.dart';
 import '../../services/api_service.dart';
 import 'ver_equipo_usuario_screen.dart';
-
+import '../chat/chat_conversacion_screen.dart';
 
 class ClasificacionLigaScreen extends StatefulWidget {
   final int ligaId;
 
-  const ClasificacionLigaScreen({Key? key, required this.ligaId}) : super(key: key);
+  const ClasificacionLigaScreen({Key? key, required this.ligaId})
+      : super(key: key);
 
   @override
-  State<ClasificacionLigaScreen> createState() => _ClasificacionLigaScreenState();
+  State<ClasificacionLigaScreen> createState() =>
+      _ClasificacionLigaScreenState();
 }
 
 class _ClasificacionLigaScreenState extends State<ClasificacionLigaScreen> {
@@ -56,7 +58,8 @@ class _ClasificacionLigaScreenState extends State<ClasificacionLigaScreen> {
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(Icons.error_outline, size: 60, color: Colors.red[300]),
+                      Icon(Icons.error_outline,
+                          size: 60, color: Colors.red[300]),
                       const SizedBox(height: 16),
                       Text(
                         'Error al cargar clasificación',
@@ -105,7 +108,8 @@ class _ClasificacionLigaScreenState extends State<ClasificacionLigaScreen> {
                         // Header con información de la liga
                         Container(
                           padding: const EdgeInsets.all(16),
-                          color: Theme.of(context).primaryColor.withOpacity(0.1),
+                          color:
+                              Theme.of(context).primaryColor.withOpacity(0.1),
                           child: Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
@@ -114,7 +118,10 @@ class _ClasificacionLigaScreenState extends State<ClasificacionLigaScreen> {
                                 children: [
                                   Text(
                                     _liga?['nombre'] ?? '',
-                                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .titleLarge
+                                        ?.copyWith(
                                           fontWeight: FontWeight.bold,
                                         ),
                                   ),
@@ -161,14 +168,25 @@ class _ClasificacionLigaScreenState extends State<ClasificacionLigaScreen> {
       ),
       child: Row(
         children: [
-          const SizedBox(width: 40, child: Text('#', style: TextStyle(fontWeight: FontWeight.bold))),
+          const SizedBox(
+              width: 40,
+              child: Text('#', style: TextStyle(fontWeight: FontWeight.bold))),
           const Expanded(
             flex: 3,
-            child: Text('Equipo', style: TextStyle(fontWeight: FontWeight.bold)),
+            child:
+                Text('Equipo', style: TextStyle(fontWeight: FontWeight.bold)),
           ),
-          const SizedBox(width: 40, child: Text('PJ', style: TextStyle(fontWeight: FontWeight.bold))),
-          const SizedBox(width: 40, child: Text('PTS', style: TextStyle(fontWeight: FontWeight.bold))),
-          const SizedBox(width: 50, child: Text('DIF', style: TextStyle(fontWeight: FontWeight.bold))),
+          const SizedBox(
+              width: 40,
+              child: Text('PJ', style: TextStyle(fontWeight: FontWeight.bold))),
+          const SizedBox(
+              width: 40,
+              child:
+                  Text('PTS', style: TextStyle(fontWeight: FontWeight.bold))),
+          const SizedBox(
+              width: 50,
+              child:
+                  Text('DIF', style: TextStyle(fontWeight: FontWeight.bold))),
         ],
       ),
     );
@@ -304,59 +322,60 @@ class _ClasificacionLigaScreenState extends State<ClasificacionLigaScreen> {
     }
   }
 
-  void _mostrarDetalles(Map<String, dynamic> participante) {
-  showDialog(
-    context: context,
-    builder: (context) => AlertDialog(
-      title: Text(participante['equipo_nombre']),
-      content: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _buildInfoRow('Jugador', participante['usuario_nombre']),
-          _buildInfoRow('Posición', '#${participante['posicion']}'),
-          const Divider(),
-          _buildInfoRow('Partidos jugados', '${participante['partidos_jugados']}'),
-          _buildInfoRow('Victorias', '${participante['partidos_ganados']}'),
-          _buildInfoRow('Empates', '${participante['partidos_empatados']}'),
-          _buildInfoRow('Derrotas', '${participante['partidos_perdidos']}'),
-          const Divider(),
-          _buildInfoRow('Puntos', '${participante['puntos']}'),
-          _buildInfoRow('Goles a favor', '${participante['goles_favor']}'),
-          _buildInfoRow('Goles en contra', '${participante['goles_contra']}'),
-          _buildInfoRow(
-            'Diferencia',
-            '${participante['diferencia_goles'] > 0 ? '+' : ''}${participante['diferencia_goles']}',
+void _mostrarDetalles(Map<String, dynamic> participante) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(participante['equipo_nombre']),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildInfoRow('Jugador', participante['usuario_nombre']),
+            _buildInfoRow('Posición', '#${participante['posicion']}'),
+            const Divider(),
+            _buildInfoRow(
+                'Partidos jugados', '${participante['partidos_jugados']}'),
+            _buildInfoRow('Victorias', '${participante['partidos_ganados']}'),
+            _buildInfoRow('Empates', '${participante['partidos_empatados']}'),
+            _buildInfoRow('Derrotas', '${participante['partidos_perdidos']}'),
+            const Divider(),
+            _buildInfoRow('Puntos', '${participante['puntos']}'),
+            _buildInfoRow('Goles a favor', '${participante['goles_favor']}'),
+            _buildInfoRow('Goles en contra', '${participante['goles_contra']}'),
+            _buildInfoRow(
+              'Diferencia',
+              '${participante['diferencia_goles'] > 0 ? '+' : ''}${participante['diferencia_goles']}',
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cerrar'),
+          ),
+          ElevatedButton.icon(
+            onPressed: () {
+              Navigator.pop(context);
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => VerEquipoUsuarioScreen(
+                    ligaId: widget.ligaId,
+                    usuarioId: participante['usuario_id'],
+                    nombreUsuario: participante['usuario_nombre'],
+                    nombreEquipo: participante['equipo_nombre'],  // ← AÑADIDO
+                  ),
+                ),
+              );
+            },
+            icon: const Icon(Icons.visibility),
+            label: const Text('Ver equipo'),
           ),
         ],
       ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: const Text('Cerrar'),
-        ),
-        ElevatedButton.icon(
-          onPressed: () {
-            Navigator.pop(context);
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (_) => VerEquipoUsuarioScreen(
-                  ligaId: widget.ligaId,
-                  usuarioId: participante['usuario_id'],
-                  nombreUsuario: participante['usuario_nombre'],
-                  nombreEquipo: participante['equipo_nombre'],
-                ),
-              ),
-            );
-          },
-          icon: const Icon(Icons.visibility),
-          label: const Text('Ver equipo'),
-        ),
-      ],
-    ),
-  );
-}
+    );
+  }
 
   Widget _buildInfoRow(String label, String value) {
     return Padding(
