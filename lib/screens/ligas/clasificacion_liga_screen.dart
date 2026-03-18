@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../services/api_service.dart';
 import 'ver_equipo_usuario_screen.dart';
-import '../chat/chat_conversacion_screen.dart';
+//import '../chat/chat_conversacion_screen.dart';
 
 class ClasificacionLigaScreen extends StatefulWidget {
   final int ligaId;

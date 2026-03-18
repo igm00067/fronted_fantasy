@@ -4,6 +4,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 
 class ApiService {
+  // EMULADOR Android → usa: 'http://10.0.2.2:5000/api'
+  // DISPOSITIVO FÍSICO (USB) → usa: 'http://localhost:5000/api' + ejecutar "adb reverse tcp:5000 tcp:5000"
+  //static const String baseUrl = 'http://localhost:5000/api';
   static const String baseUrl = 'http://10.0.2.2:5000/api';
   
   static final Map<String, String> headers = {
@@ -509,10 +512,116 @@ static Future<List<dynamic>> getMensajes(int conversacionId) async {
   }
 }
 
+// ==================== OFERTAS ====================
+
+static Future<List<dynamic>> getMiEquipo(int ligaId) async {
+  final prefs = await SharedPreferences.getInstance();
+  final token = prefs.getString('access_token');
+
+  final response = await http.get(
+    Uri.parse('$baseUrl/ligas/$ligaId/mi-equipo'),
+    headers: {
+      'Authorization': 'Bearer $token',
+      'Content-Type': 'application/json',
+    },
+  );
+
+  if (response.statusCode == 200) {
+    final data = json.decode(response.body);
+    return data['plantilla'];
+  } else {
+    throw Exception('Error obteniendo mi equipo');
+  }
+}
+
+static Future<List<dynamic>> getEquipoUsuario(int ligaId, int usuarioId) async {
+  final prefs = await SharedPreferences.getInstance();
+  final token = prefs.getString('access_token');
+
+  final response = await http.get(
+    Uri.parse('$baseUrl/ligas/$ligaId/equipo/$usuarioId'),
+    headers: {
+      'Authorization': 'Bearer $token',
+      'Content-Type': 'application/json',
+    },
+  );
+
+  if (response.statusCode == 200) {
+    final data = json.decode(response.body);
+    return data['plantilla'];
+  } else {
+    throw Exception('Error obteniendo equipo del usuario');
+  }
+}
+
+static Future<Map<String, dynamic>> crearOferta({
+  required int conversacionId,
+  int? jugadorOfrecidoId,
+  double dineroOfrecido = 0,
+  int? jugadorSolicitadoId,
+  double dineroSolicitado = 0,
+  String mensaje = '',
+}) async {
+  final prefs = await SharedPreferences.getInstance();
+  final token = prefs.getString('access_token');
+
+  final response = await http.post(
+    Uri.parse('$baseUrl/chat/oferta/crear'),
+    headers: {
+      'Authorization': 'Bearer $token',
+      'Content-Type': 'application/json',
+    },
+    body: json.encode({
+      'conversacion_id': conversacionId,
+      'jugador_ofrecido_id': jugadorOfrecidoId,
+      'dinero_ofrecido': dineroOfrecido,
+      'jugador_solicitado_id': jugadorSolicitadoId,
+      'dinero_solicitado': dineroSolicitado,
+      'mensaje': mensaje,
+    }),
+  );
+
+  if (response.statusCode == 201) {
+    return json.decode(response.body);
+  } else {
+    final error = json.decode(response.body);
+    throw Exception(error['error'] ?? 'Error creando oferta');
+  }
+}
+
+static Future<Map<String, dynamic>> responderOferta({
+  required int ofertaId,
+  required String accion, // 'ACEPTAR' o 'RECHAZAR'
+}) async {
+  final prefs = await SharedPreferences.getInstance();
+  final token = prefs.getString('access_token');
+
+  final response = await http.post(
+    Uri.parse('$baseUrl/chat/oferta/$ofertaId/responder'),
+    headers: {
+      'Authorization': 'Bearer $token',
+      'Content-Type': 'application/json',
+    },
+    body: json.encode({
+      'accion': accion,
+    }),
+  );
+
+  if (response.statusCode == 200) {
+    return json.decode(response.body);
+  } else {
+    final error = json.decode(response.body);
+    throw Exception(error['error'] ?? 'Error respondiendo oferta');
+  }
+}
+
+
+
 
   // Método de prueba
   static Future<bool> testConexion() async {
     try {
+      // EMULADOR: 'http://10.0.2.2:5000/'  |  DISPOSITIVO FÍSICO: 'http://192.168.194.109:5000/'
       final response = await http.get(Uri.parse('http://10.0.2.2:5000/'));
       return response.statusCode == 200;
     } catch (e) {

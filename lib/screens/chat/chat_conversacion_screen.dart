@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../services/api_service.dart';
 import '../../services/socket_service.dart';
+import 'crear_oferta_screen.dart';
 import 'dart:async';
 
 class ChatConversacionScreen extends StatefulWidget {
@@ -113,34 +114,7 @@ class _ChatConversacionScreenState extends State<ChatConversacionScreen> {
     };
 
     // Typing desactivado por problemas de rendimiento
-    /*
-    SocketService.onUserTyping = (data) {
-      if (!mounted) return;
-      
-      if (data['conversacion_id'] == widget.conversacionId) {
-        final isTyping = data['is_typing'] ?? false;
-        
-        if (_otroUsuarioEscribiendo != isTyping) {
-          setState(() {
-            _otroUsuarioEscribiendo = isTyping;
-          });
-        }
-
-        _typingIndicatorTimer?.cancel();
-
-        if (isTyping) {
-          _typingIndicatorTimer = Timer(const Duration(seconds: 3), () {
-            if (mounted && _otroUsuarioEscribiendo) {
-              setState(() {
-                _otroUsuarioEscribiendo = false;
-              });
-            }
-          });
-        }
-      }
-    };
-    */
-  }  // ← Aquí estaba el problema, faltaba cerrar la llave
+  }
 
   Future<void> _cargarMensajes() async {
     setState(() => _cargando = true);
@@ -224,6 +198,101 @@ class _ChatConversacionScreenState extends State<ChatConversacionScreen> {
     }
   }
 
+  Future<void> _abrirCrearOferta() async {
+    final resultado = await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => CrearOfertaScreen(
+          conversacionId: widget.conversacionId,
+          ligaId: widget.ligaId,
+          otroUsuarioId: widget.otroUsuario['id'],
+          otroUsuarioNombre: widget.otroUsuario['nombre'],
+        ),
+      ),
+    );
+
+    // Si se creó la oferta, recargar mensajes
+    if (resultado == true) {
+      _cargarMensajes();
+    }
+  }
+
+  Future<void> _responderOferta(int ofertaId, String accion) async {
+    try {
+      // Mostrar diálogo de confirmación
+      final confirmar = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: Text(accion == 'ACEPTAR' ? 'Aceptar oferta' : 'Rechazar oferta'),
+          content: Text(
+            accion == 'ACEPTAR'
+                ? '¿Estás seguro de aceptar esta oferta? El intercambio se realizará inmediatamente.'
+                : '¿Estás seguro de rechazar esta oferta?',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Cancelar'),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(context, true),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: accion == 'ACEPTAR' ? Colors.green : Colors.red,
+              ),
+              child: Text(accion == 'ACEPTAR' ? 'Aceptar' : 'Rechazar'),
+            ),
+          ],
+        ),
+      );
+
+      if (confirmar != true) return;
+
+      // Mostrar loading
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const Center(child: CircularProgressIndicator()),
+      );
+
+      await ApiService.responderOferta(
+        ofertaId: ofertaId,
+        accion: accion,
+      );
+
+      // Cerrar loading
+      if (mounted) Navigator.pop(context);
+
+      // Recargar mensajes
+      _cargarMensajes();
+
+      // Mostrar mensaje de éxito
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              accion == 'ACEPTAR'
+                  ? '¡Oferta aceptada! El intercambio se ha realizado.'
+                  : 'Oferta rechazada',
+            ),
+            backgroundColor: accion == 'ACEPTAR' ? Colors.green : Colors.orange,
+          ),
+        );
+      }
+    } catch (e) {
+      // Cerrar loading si hay error
+      if (mounted) Navigator.pop(context);
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(e.toString().replaceAll('Exception: ', '')),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -240,15 +309,9 @@ class _ChatConversacionScreenState extends State<ChatConversacionScreen> {
             ),
             const SizedBox(width: 12),
             Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    widget.otroUsuario['nombre'],
-                    style: const TextStyle(fontSize: 16),
-                  ),
-                  // Typing indicator desactivado
-                ],
+              child: Text(
+                widget.otroUsuario['nombre'],
+                style: const TextStyle(fontSize: 16),
               ),
             ),
           ],
@@ -321,14 +384,9 @@ class _ChatConversacionScreenState extends State<ChatConversacionScreen> {
             child: Row(
               children: [
                 IconButton(
-                  icon: const Icon(Icons.attach_file),
-                  onPressed: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Próximamente: Hacer oferta'),
-                      ),
-                    );
-                  },
+                  icon: const Icon(Icons.swap_horiz, color: Colors.blue),
+                  onPressed: _abrirCrearOferta,
+                  tooltip: 'Hacer oferta',
                 ),
                 Expanded(
                   child: TextField(
@@ -338,7 +396,6 @@ class _ChatConversacionScreenState extends State<ChatConversacionScreen> {
                       border: InputBorder.none,
                     ),
                     textCapitalization: TextCapitalization.sentences,
-                    // onChanged desactivado para evitar problemas de teclado
                     onSubmitted: (_) => _enviarMensaje(),
                   ),
                 ),
@@ -363,7 +420,14 @@ class _ChatConversacionScreenState extends State<ChatConversacionScreen> {
   Widget _buildMensajeBubble(Map<String, dynamic> mensaje) {
     final bool esMio = mensaje['remitente_id'] == _currentUserId;
     final remitente = mensaje['remitente'];
+    final tipo = mensaje['tipo'] ?? 'TEXTO';
 
+    // Si es una oferta, mostrar card especial
+    if (tipo == 'OFERTA') {
+      return _buildOfertaCard(mensaje, esMio);
+    }
+
+    // Mensaje normal
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: Row(
@@ -417,6 +481,200 @@ class _ChatConversacionScreenState extends State<ChatConversacionScreen> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildOfertaCard(Map<String, dynamic> mensaje, bool esMio) {
+    final oferta = mensaje['oferta'];
+    if (oferta == null) return const SizedBox.shrink();
+
+    final estado = oferta['estado'] ?? 'PENDIENTE';
+    final jugadorOfrecido = oferta['jugador_ofrecido'];
+    final jugadorSolicitado = oferta['jugador_solicitado'];
+    final dineroOfrecido = oferta['dinero_ofrecido'] ?? 0.0;
+    final dineroSolicitado = oferta['dinero_solicitado'] ?? 0.0;
+
+    Color estadoColor = Colors.orange;
+    IconData estadoIcon = Icons.hourglass_empty;
+    String estadoTexto = 'Pendiente';
+
+    if (estado == 'ACEPTADA') {
+      estadoColor = Colors.green;
+      estadoIcon = Icons.check_circle;
+      estadoTexto = 'Aceptada';
+    } else if (estado == 'RECHAZADA') {
+      estadoColor = Colors.red;
+      estadoIcon = Icons.cancel;
+      estadoTexto = 'Rechazada';
+    }
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Card(
+        margin: EdgeInsets.only(
+          left: esMio ? 40 : 0,
+          right: esMio ? 0 : 40,
+        ),
+        elevation: 3,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+          side: BorderSide(color: estadoColor, width: 2),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Header
+              Row(
+                children: [
+                  Icon(Icons.swap_horiz, color: estadoColor, size: 20),
+                  const SizedBox(width: 8),
+                  Text(
+                    esMio ? 'Tu oferta' : 'Oferta recibida',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: estadoColor,
+                      fontSize: 16,
+                    ),
+                  ),
+                  const Spacer(),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: estadoColor.withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(estadoIcon, size: 14, color: estadoColor),
+                        const SizedBox(width: 4),
+                        Text(
+                          estadoTexto,
+                          style: TextStyle(
+                            color: estadoColor,
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+
+              const SizedBox(height: 12),
+              const Divider(),
+              const SizedBox(height: 8),
+
+              // Ofrece
+              if (jugadorOfrecido != null || dineroOfrecido > 0) ...[
+                Text(
+                  esMio ? 'Ofreces:' : 'Te ofrece:',
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.grey,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                if (jugadorOfrecido != null)
+                  Text(
+                    '⚽ ${jugadorOfrecido['nombre']} (${jugadorOfrecido['posicion']})',
+                    style: const TextStyle(fontSize: 14),
+                  ),
+                if (dineroOfrecido > 0)
+                  Text(
+                    '💰 ${dineroOfrecido.toStringAsFixed(1)}M',
+                    style: const TextStyle(fontSize: 14),
+                  ),
+                const SizedBox(height: 8),
+              ],
+
+              // Solicita
+              if (jugadorSolicitado != null || dineroSolicitado > 0) ...[
+                Text(
+                  esMio ? 'Solicitas:' : 'Te solicita:',
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.grey,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                if (jugadorSolicitado != null)
+                  Text(
+                    '⚽ ${jugadorSolicitado['nombre']} (${jugadorSolicitado['posicion']})',
+                    style: const TextStyle(fontSize: 14),
+                  ),
+                if (dineroSolicitado > 0)
+                  Text(
+                    '💰 ${dineroSolicitado.toStringAsFixed(1)}M',
+                    style: const TextStyle(fontSize: 14),
+                  ),
+                const SizedBox(height: 8),
+              ],
+
+              // Mensaje
+              if (oferta['mensaje'] != null && oferta['mensaje'].toString().isNotEmpty) ...[
+                const Divider(),
+                const SizedBox(height: 8),
+                Text(
+                  '"${oferta['mensaje']}"',
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontStyle: FontStyle.italic,
+                    color: Colors.grey[700],
+                  ),
+                ),
+              ],
+
+              // Botones de acción (solo si no es mía y está pendiente)
+              if (!esMio && estado == 'PENDIENTE') ...[
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                      child: ElevatedButton.icon(
+                        onPressed: () => _responderOferta(oferta['id'], 'RECHAZAR'),
+                        icon: const Icon(Icons.close, size: 18),
+                        label: const Text('Rechazar'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.red,
+                          foregroundColor: Colors.white,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: ElevatedButton.icon(
+                        onPressed: () => _responderOferta(oferta['id'], 'ACEPTAR'),
+                        icon: const Icon(Icons.check, size: 18),
+                        label: const Text('Aceptar'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.green,
+                          foregroundColor: Colors.white,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+
+              // Hora
+              const SizedBox(height: 8),
+              Text(
+                _formatearHora(mensaje['created_at']),
+                style: TextStyle(
+                  color: Colors.grey[600],
+                  fontSize: 11,
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
