@@ -534,6 +534,26 @@ static Future<List<dynamic>> getMiEquipo(int ligaId) async {
   }
 }
 
+static Future<double> getSaldoDisponible(int ligaId) async {
+  final prefs = await SharedPreferences.getInstance();
+  final token = prefs.getString('access_token');
+
+  final response = await http.get(
+    Uri.parse('$baseUrl/ligas/$ligaId/mi-equipo'),
+    headers: {
+      'Authorization': 'Bearer $token',
+      'Content-Type': 'application/json',
+    },
+  );
+
+  if (response.statusCode == 200) {
+    final data = json.decode(response.body);
+    return (data['equipo']['saldo_disponible'] as num).toDouble();
+  } else {
+    throw Exception('Error obteniendo saldo');
+  }
+}
+
 static Future<List<dynamic>> getEquipoUsuario(int ligaId, int usuarioId) async {
   final prefs = await SharedPreferences.getInstance();
   final token = prefs.getString('access_token');

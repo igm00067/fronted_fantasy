@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../services/api_service.dart';
+import '../../config/app_theme.dart';
 import 'package:timeago/timeago.dart' as timeago;
 
 class HistorialMercadoScreen extends StatefulWidget {
@@ -45,55 +46,38 @@ class _HistorialMercadoScreenState extends State<HistorialMercadoScreen> {
 
   Color _getColorPosicion(String posicion) {
     switch (posicion) {
-      case 'POR':
-        return Colors.amber;
-      case 'DEF':
-        return Colors.blue;
-      case 'MED':
-        return Colors.green;
-      case 'DEL':
-        return Colors.red;
-      default:
-        return Colors.grey;
+      case 'POR': return const Color(0xFFE69B00);
+      case 'DEF': return const Color(0xFF1565C0);
+      case 'MED': return const Color(0xFF2E7D32);
+      case 'DEL': return const Color(0xFFC62828);
+      default:    return Colors.grey;
     }
   }
 
   IconData _getIconoTipo(String tipo) {
     switch (tipo) {
-      case 'FICHAJE_MERCADO':
-        return Icons.shopping_cart;
-      case 'VENTA':
-        return Icons.sell;
-      case 'FICHAJE_INICIAL':
-        return Icons.card_giftcard;
-      default:
-        return Icons.swap_horiz;
+      case 'FICHAJE_MERCADO':  return Icons.shopping_cart;
+      case 'VENTA':            return Icons.sell;
+      case 'FICHAJE_INICIAL':  return Icons.card_giftcard;
+      default:                 return Icons.swap_horiz;
     }
   }
 
   Color _getColorTipo(String tipo) {
     switch (tipo) {
-      case 'FICHAJE_MERCADO':
-        return Colors.green;
-      case 'VENTA':
-        return Colors.orange;
-      case 'FICHAJE_INICIAL':
-        return Colors.blue;
-      default:
-        return Colors.grey;
+      case 'FICHAJE_MERCADO': return const Color(0xFF2E7D32);
+      case 'VENTA':           return const Color(0xFFE65100);
+      case 'FICHAJE_INICIAL': return const Color(0xFF1565C0);
+      default:                return Colors.grey;
     }
   }
 
   String _getTituloTipo(String tipo) {
     switch (tipo) {
-      case 'FICHAJE_MERCADO':
-        return 'Fichaje';
-      case 'VENTA':
-        return 'Venta';
-      case 'FICHAJE_INICIAL':
-        return 'Fichaje Inicial';
-      default:
-        return 'Transacción';
+      case 'FICHAJE_MERCADO': return 'Fichaje';
+      case 'VENTA':           return 'Venta';
+      case 'FICHAJE_INICIAL': return 'Fichaje Inicial';
+      default:                return 'Transacción';
     }
   }
 
@@ -116,19 +100,17 @@ class _HistorialMercadoScreenState extends State<HistorialMercadoScreen> {
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(Icons.error_outline, size: 60, color: Colors.red[300]),
+                      Icon(Icons.error_outline, size: 60, color: Colors.red[400]),
                       const SizedBox(height: 16),
-                      Text(
-                        'Error al cargar historial',
-                        style: Theme.of(context).textTheme.titleLarge,
-                      ),
+                      Text('Error al cargar historial',
+                          style: Theme.of(context).textTheme.titleLarge),
                       const SizedBox(height: 8),
                       Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 32),
                         child: Text(
                           _error!.replaceAll('Exception: ', ''),
                           textAlign: TextAlign.center,
-                          style: TextStyle(color: Colors.grey[600]),
+                          style: const TextStyle(color: AppTheme.textSecondaryColor),
                         ),
                       ),
                       const SizedBox(height: 16),
@@ -145,16 +127,16 @@ class _HistorialMercadoScreenState extends State<HistorialMercadoScreen> {
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Icon(Icons.history, size: 80, color: Colors.grey[300]),
+                          const Icon(Icons.history, size: 80,
+                              color: AppTheme.textSecondaryColor),
                           const SizedBox(height: 16),
-                          const Text(
-                            'No hay fichajes todavía',
-                            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                          ),
+                          const Text('No hay fichajes todavía',
+                              style: TextStyle(
+                                  fontSize: 18, fontWeight: FontWeight.bold)),
                           const SizedBox(height: 8),
-                          Text(
+                          const Text(
                             'Los fichajes aparecerán aquí cuando\nalguien gane una subasta',
-                            style: TextStyle(color: Colors.grey[600]),
+                            style: TextStyle(color: AppTheme.textSecondaryColor),
                             textAlign: TextAlign.center,
                           ),
                         ],
@@ -165,27 +147,23 @@ class _HistorialMercadoScreenState extends State<HistorialMercadoScreen> {
                       child: ListView.builder(
                         padding: const EdgeInsets.all(16),
                         itemCount: _transacciones.length,
-                        itemBuilder: (context, index) {
-                          final transaccion = _transacciones[index];
-                          return _buildTransaccionCard(transaccion);
-                        },
+                        itemBuilder: (context, index) =>
+                            _buildTransaccionCard(_transacciones[index]),
                       ),
                     ),
     );
   }
 
   Widget _buildTransaccionCard(Map<String, dynamic> transaccion) {
-    final tipo = transaccion['tipo'];
+    final tipo = transaccion['tipo'] as String;
     final colorTipo = _getColorTipo(tipo);
     final fecha = DateTime.parse(transaccion['created_at']);
     final tiempoAtras = timeago.format(fecha, locale: 'es');
+    final posicion = transaccion['jugador_posicion'] as String;
+    final colorPos = _getColorPosicion(posicion);
 
     return Card(
       margin: const EdgeInsets.only(bottom: 16),
-      elevation: 3,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-      ),
       child: Container(
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(16),
@@ -193,28 +171,30 @@ class _HistorialMercadoScreenState extends State<HistorialMercadoScreen> {
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
             colors: [
-              Colors.white,
-              colorTipo.withOpacity(0.05),
+              colorTipo.withOpacity(0.12),
+              AppTheme.surfaceColor,
             ],
           ),
+          border: Border.all(color: colorTipo.withOpacity(0.3), width: 1),
         ),
         child: Padding(
           padding: const EdgeInsets.all(16),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Header con badge y tiempo
+              // ── Cabecera: badge tipo + tiempo ──
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                     decoration: BoxDecoration(
                       color: colorTipo,
                       borderRadius: BorderRadius.circular(20),
                       boxShadow: [
                         BoxShadow(
-                          color: colorTipo.withOpacity(0.3),
+                          color: colorTipo.withOpacity(0.4),
                           blurRadius: 8,
                           offset: const Offset(0, 2),
                         ),
@@ -223,11 +203,7 @@ class _HistorialMercadoScreenState extends State<HistorialMercadoScreen> {
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(
-                          _getIconoTipo(tipo),
-                          color: Colors.white,
-                          size: 16,
-                        ),
+                        Icon(_getIconoTipo(tipo), color: Colors.white, size: 14),
                         const SizedBox(width: 6),
                         Text(
                           _getTituloTipo(tipo),
@@ -241,19 +217,22 @@ class _HistorialMercadoScreenState extends State<HistorialMercadoScreen> {
                     ),
                   ),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                     decoration: BoxDecoration(
-                      color: Colors.grey[100],
+                      color: AppTheme.surfaceVariantColor,
                       borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: AppTheme.borderColor),
                     ),
                     child: Row(
                       children: [
-                        Icon(Icons.access_time, size: 12, color: Colors.grey[600]),
+                        const Icon(Icons.access_time,
+                            size: 12, color: AppTheme.textSecondaryColor),
                         const SizedBox(width: 4),
                         Text(
                           tiempoAtras,
-                          style: TextStyle(
-                            color: Colors.grey[700],
+                          style: const TextStyle(
+                            color: AppTheme.textSecondaryColor,
                             fontSize: 11,
                             fontWeight: FontWeight.w500,
                           ),
@@ -263,22 +242,18 @@ class _HistorialMercadoScreenState extends State<HistorialMercadoScreen> {
                   ),
                 ],
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 14),
 
-              // Equipo que fichó
+              // ── Equipo ──
               Row(
                 children: [
                   Container(
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
-                      color: colorTipo.withOpacity(0.1),
+                      color: colorTipo.withOpacity(0.15),
                       borderRadius: BorderRadius.circular(10),
                     ),
-                    child: Icon(
-                      Icons.shield,
-                      color: colorTipo,
-                      size: 20,
-                    ),
+                    child: Icon(Icons.shield, color: colorTipo, size: 20),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
@@ -288,14 +263,12 @@ class _HistorialMercadoScreenState extends State<HistorialMercadoScreen> {
                         Text(
                           transaccion['equipo_nombre'],
                           style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 16,
-                          ),
+                              fontWeight: FontWeight.bold, fontSize: 15),
                         ),
                         Text(
                           transaccion['usuario_nombre'],
-                          style: TextStyle(
-                            color: Colors.grey[600],
+                          style: const TextStyle(
+                            color: AppTheme.textSecondaryColor,
                             fontSize: 12,
                           ),
                         ),
@@ -307,26 +280,24 @@ class _HistorialMercadoScreenState extends State<HistorialMercadoScreen> {
 
               const SizedBox(height: 12),
 
-              // Divisor decorativo
+              // ── Divisor ──
               Container(
                 height: 1,
                 decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [
-                      Colors.transparent,
-                      Colors.grey[300]!,
-                      Colors.transparent,
-                    ],
-                  ),
+                  gradient: LinearGradient(colors: [
+                    Colors.transparent,
+                    AppTheme.borderColor,
+                    Colors.transparent,
+                  ]),
                 ),
               ),
 
               const SizedBox(height: 12),
 
-              // Jugador fichado
+              // ── Jugador + precio ──
               Row(
                 children: [
-                  // Avatar del jugador
+                  // Avatar posición
                   Container(
                     width: 50,
                     height: 50,
@@ -334,15 +305,12 @@ class _HistorialMercadoScreenState extends State<HistorialMercadoScreen> {
                       gradient: LinearGradient(
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
-                        colors: [
-                          _getColorPosicion(transaccion['jugador_posicion']),
-                          _getColorPosicion(transaccion['jugador_posicion']).withOpacity(0.7),
-                        ],
+                        colors: [colorPos, colorPos.withOpacity(0.7)],
                       ),
                       borderRadius: BorderRadius.circular(12),
                       boxShadow: [
                         BoxShadow(
-                          color: _getColorPosicion(transaccion['jugador_posicion']).withOpacity(0.3),
+                          color: colorPos.withOpacity(0.4),
                           blurRadius: 8,
                           offset: const Offset(0, 3),
                         ),
@@ -350,10 +318,10 @@ class _HistorialMercadoScreenState extends State<HistorialMercadoScreen> {
                     ),
                     child: Center(
                       child: Text(
-                        transaccion['jugador_posicion'],
+                        posicion,
                         style: const TextStyle(
                           color: Colors.white,
-                          fontSize: 14,
+                          fontSize: 13,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
@@ -361,7 +329,7 @@ class _HistorialMercadoScreenState extends State<HistorialMercadoScreen> {
                   ),
                   const SizedBox(width: 12),
 
-                  // Info del jugador
+                  // Nombre + nacionalidad
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -370,24 +338,22 @@ class _HistorialMercadoScreenState extends State<HistorialMercadoScreen> {
                           transaccion['jugador_nombre'],
                           style: const TextStyle(
                             fontWeight: FontWeight.bold,
-                            fontSize: 17,
+                            fontSize: 16,
+                            color: Colors.white,
                           ),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
-                        const SizedBox(height: 2),
+                        const SizedBox(height: 3),
                         Row(
                           children: [
-                            Icon(
-                              Icons.flag,
-                              size: 12,
-                              color: Colors.grey[600],
-                            ),
+                            const Icon(Icons.flag,
+                                size: 12, color: AppTheme.textSecondaryColor),
                             const SizedBox(width: 4),
                             Text(
                               transaccion['jugador_nacionalidad'],
-                              style: TextStyle(
-                                color: Colors.grey[600],
+                              style: const TextStyle(
+                                color: AppTheme.textSecondaryColor,
                                 fontSize: 12,
                               ),
                             ),
@@ -399,36 +365,26 @@ class _HistorialMercadoScreenState extends State<HistorialMercadoScreen> {
 
                   // Precio
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 14, vertical: 10),
                     decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                        colors: [
-                          Colors.green[600]!,
-                          Colors.green[700]!,
-                        ],
-                      ),
+                      color: AppTheme.secondaryColor,
                       borderRadius: BorderRadius.circular(12),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.green.withOpacity(0.3),
+                          color: AppTheme.secondaryColor.withOpacity(0.3),
                           blurRadius: 8,
                           offset: const Offset(0, 3),
                         ),
                       ],
                     ),
-                    child: Column(
-                      children: [
-                        Text(
-                          '${transaccion['precio']}M',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 18,
-                          ),
-                        ),
-                      ],
+                    child: Text(
+                      '${transaccion['precio']}M',
+                      style: const TextStyle(
+                        color: Colors.black,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 17,
+                      ),
                     ),
                   ),
                 ],

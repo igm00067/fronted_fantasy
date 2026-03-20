@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../services/api_service.dart';
+import '../../config/app_theme.dart';
 
 class CrearOfertaScreen extends StatefulWidget {
   final int conversacionId;
@@ -22,17 +23,18 @@ class CrearOfertaScreen extends StatefulWidget {
 class _CrearOfertaScreenState extends State<CrearOfertaScreen> {
   List<dynamic> _misJugadores = [];
   List<dynamic> _jugadoresRival = [];
-  
+  double? _saldoDisponible;
+
   Map<String, dynamic>? _jugadorOfrecido;
   Map<String, dynamic>? _jugadorSolicitado;
-  
+
   double _dineroOfrecido = 0;
   double _dineroSolicitado = 0;
-  
+
   final TextEditingController _mensajeController = TextEditingController();
   final TextEditingController _dineroOfrecidoController = TextEditingController();
   final TextEditingController _dineroSolicitadoController = TextEditingController();
-  
+
   bool _cargando = true;
   bool _enviando = false;
 
@@ -52,17 +54,16 @@ class _CrearOfertaScreenState extends State<CrearOfertaScreen> {
 
   Future<void> _cargarJugadores() async {
     setState(() => _cargando = true);
-
     try {
-      final misJugadores = await ApiService.getMiEquipo(widget.ligaId);
-      final jugadoresRival = await ApiService.getEquipoUsuario(
-        widget.ligaId,
-        widget.otroUsuarioId,
-      );
-
+      final results = await Future.wait([
+        ApiService.getMiEquipo(widget.ligaId),
+        ApiService.getEquipoUsuario(widget.ligaId, widget.otroUsuarioId),
+        ApiService.getSaldoDisponible(widget.ligaId),
+      ]);
       setState(() {
-        _misJugadores = misJugadores;
-        _jugadoresRival = jugadoresRival;
+        _misJugadores = results[0] as List<dynamic>;
+        _jugadoresRival = results[1] as List<dynamic>;
+        _saldoDisponible = results[2] as double;
         _cargando = false;
       });
     } catch (e) {
@@ -76,8 +77,7 @@ class _CrearOfertaScreenState extends State<CrearOfertaScreen> {
   }
 
   Future<void> _enviarOferta() async {
-    // Validar que al menos se ofrezca o solicite algo
-    if (_jugadorOfrecido == null && _dineroOfrecido == 0 && 
+    if (_jugadorOfrecido == null && _dineroOfrecido == 0 &&
         _jugadorSolicitado == null && _dineroSolicitado == 0) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -89,7 +89,6 @@ class _CrearOfertaScreenState extends State<CrearOfertaScreen> {
     }
 
     setState(() => _enviando = true);
-
     try {
       await ApiService.crearOferta(
         conversacionId: widget.conversacionId,
@@ -101,7 +100,7 @@ class _CrearOfertaScreenState extends State<CrearOfertaScreen> {
       );
 
       if (mounted) {
-        Navigator.pop(context, true); // Retornar true para indicar éxito
+        Navigator.pop(context, true);
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Oferta enviada'),
@@ -127,7 +126,38 @@ class _CrearOfertaScreenState extends State<CrearOfertaScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Crear oferta'),
-        backgroundColor: Colors.blue,
+        actions: [
+          if (_saldoDisponible != null)
+            Padding(
+              padding: const EdgeInsets.only(right: 12),
+              child: Center(
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                  decoration: BoxDecoration(
+                    color: AppTheme.secondaryColor.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: AppTheme.secondaryColor.withOpacity(0.6)),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.account_balance_wallet,
+                          size: 14, color: AppTheme.secondaryColor),
+                      const SizedBox(width: 5),
+                      Text(
+                        '${_saldoDisponible!.toStringAsFixed(1)}M',
+                        style: const TextStyle(
+                          color: AppTheme.secondaryColor,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 13,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+        ],
       ),
       body: _cargando
           ? const Center(child: CircularProgressIndicator())
@@ -137,104 +167,77 @@ class _CrearOfertaScreenState extends State<CrearOfertaScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   // TU OFRECES
-                  _buildSeccionHeader('Tú ofreces', Colors.blue),
+                  _buildSeccionHeader('Tú ofreces', const Color(0xFF2979FF)),
                   const SizedBox(height: 12),
-                  
-                  // Jugador ofrecido
                   _buildJugadorSelector(
-                    titulo: 'Jugador',
+                    titulo: 'Jugador (opcional)',
                     jugadores: _misJugadores,
                     jugadorSeleccionado: _jugadorOfrecido,
-                    onSelect: (jugador) {
-                      setState(() => _jugadorOfrecido = jugador);
-                    },
+                    onSelect: (j) => setState(() => _jugadorOfrecido = j),
                   ),
-                  
                   const SizedBox(height: 12),
-                  
-                  // Dinero ofrecido
                   TextField(
                     controller: _dineroOfrecidoController,
                     decoration: const InputDecoration(
                       labelText: 'Dinero (millones)',
-                      border: OutlineInputBorder(),
                       prefixIcon: Icon(Icons.attach_money),
                     ),
                     keyboardType: TextInputType.number,
-                    onChanged: (value) {
-                      setState(() {
-                        _dineroOfrecido = double.tryParse(value) ?? 0;
-                      });
-                    },
+                    onChanged: (v) =>
+                        setState(() => _dineroOfrecido = double.tryParse(v) ?? 0),
                   ),
 
                   const SizedBox(height: 24),
-                  const Divider(thickness: 2),
+                  const Divider(),
                   const SizedBox(height: 24),
 
-                  // SOLICITAS
-                  _buildSeccionHeader('Tú solicitas', Colors.green),
+                  // TÚ SOLICITAS
+                  _buildSeccionHeader(
+                      'Tú solicitas', const Color(0xFF00C853)),
                   const SizedBox(height: 12),
-                  
-                  // Jugador solicitado
                   _buildJugadorSelector(
-                    titulo: 'Jugador de ${widget.otroUsuarioNombre}',
+                    titulo: 'Jugador de ${widget.otroUsuarioNombre} (opcional)',
                     jugadores: _jugadoresRival,
                     jugadorSeleccionado: _jugadorSolicitado,
-                    onSelect: (jugador) {
-                      setState(() => _jugadorSolicitado = jugador);
-                    },
+                    onSelect: (j) => setState(() => _jugadorSolicitado = j),
                   ),
-                  
                   const SizedBox(height: 12),
-                  
-                  // Dinero solicitado
                   TextField(
                     controller: _dineroSolicitadoController,
                     decoration: const InputDecoration(
                       labelText: 'Dinero (millones)',
-                      border: OutlineInputBorder(),
                       prefixIcon: Icon(Icons.attach_money),
                     ),
                     keyboardType: TextInputType.number,
-                    onChanged: (value) {
-                      setState(() {
-                        _dineroSolicitado = double.tryParse(value) ?? 0;
-                      });
-                    },
+                    onChanged: (v) =>
+                        setState(() => _dineroSolicitado = double.tryParse(v) ?? 0),
                   ),
 
                   const SizedBox(height: 24),
-
-                  // Mensaje opcional
                   TextField(
                     controller: _mensajeController,
                     decoration: const InputDecoration(
                       labelText: 'Mensaje (opcional)',
-                      border: OutlineInputBorder(),
                       prefixIcon: Icon(Icons.message),
                     ),
                     maxLines: 3,
                   ),
 
                   const SizedBox(height: 24),
-
-                  // Botón enviar
-                  SizedBox(
-                    width: double.infinity,
-                    height: 50,
-                    child: ElevatedButton(
-                      onPressed: _enviando ? null : _enviarOferta,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.blue,
-                      ),
-                      child: _enviando
-                          ? const CircularProgressIndicator(color: Colors.white)
-                          : const Text(
-                              'Enviar oferta',
-                              style: TextStyle(fontSize: 16, color: Colors.white),
-                            ),
+                  ElevatedButton(
+                    onPressed: _enviando ? null : _enviarOferta,
+                    style: ElevatedButton.styleFrom(
+                      minimumSize: const Size.fromHeight(50),
                     ),
+                    child: _enviando
+                        ? const SizedBox(
+                            height: 22,
+                            width: 22,
+                            child: CircularProgressIndicator(
+                                strokeWidth: 2, color: Colors.black),
+                          )
+                        : const Text('Enviar oferta',
+                            style: TextStyle(fontSize: 16)),
                   ),
                 ],
               ),
@@ -248,16 +251,16 @@ class _CrearOfertaScreenState extends State<CrearOfertaScreen> {
         Container(
           width: 4,
           height: 24,
-          color: color,
+          decoration: BoxDecoration(
+            color: color,
+            borderRadius: BorderRadius.circular(2),
+          ),
         ),
-        const SizedBox(width: 8),
+        const SizedBox(width: 10),
         Text(
           titulo,
           style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-            color: color,
-          ),
+              fontSize: 17, fontWeight: FontWeight.bold, color: color),
         ),
       ],
     );
@@ -269,41 +272,60 @@ class _CrearOfertaScreenState extends State<CrearOfertaScreen> {
     required Map<String, dynamic>? jugadorSeleccionado,
     required Function(Map<String, dynamic>?) onSelect,
   }) {
+    final seleccionado = jugadorSeleccionado != null;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          titulo,
-          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
-        ),
+        Text(titulo,
+            style: const TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: AppTheme.textSecondaryColor)),
         const SizedBox(height: 8),
         InkWell(
           onTap: () => _mostrarSelectorJugadores(jugadores, onSelect),
+          borderRadius: BorderRadius.circular(12),
           child: Container(
-            padding: const EdgeInsets.all(12),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
             decoration: BoxDecoration(
-              border: Border.all(color: Colors.grey),
-              borderRadius: BorderRadius.circular(8),
+              color: AppTheme.surfaceVariantColor,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: seleccionado
+                    ? AppTheme.secondaryColor
+                    : AppTheme.borderColor,
+                width: seleccionado ? 1.5 : 1,
+              ),
             ),
             child: Row(
               children: [
                 Icon(
-                  Icons.person,
-                  color: jugadorSeleccionado != null ? Colors.blue : Colors.grey,
+                  seleccionado ? Icons.check_circle : Icons.person_search,
+                  color: seleccionado
+                      ? AppTheme.secondaryColor
+                      : AppTheme.textSecondaryColor,
+                  size: 20,
                 ),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Text(
                     jugadorSeleccionado?['nombre'] ?? 'Seleccionar jugador',
                     style: TextStyle(
-                      color: jugadorSeleccionado != null ? Colors.black : Colors.grey,
+                      color: seleccionado
+                          ? Colors.white
+                          : AppTheme.textSecondaryColor,
+                      fontWeight: seleccionado
+                          ? FontWeight.w600
+                          : FontWeight.normal,
+                      fontSize: 15,
                     ),
                   ),
                 ),
-                if (jugadorSeleccionado != null)
-                  IconButton(
-                    icon: const Icon(Icons.clear, size: 20),
-                    onPressed: () => onSelect(null),
+                if (seleccionado)
+                  GestureDetector(
+                    onTap: () => onSelect(null),
+                    child: const Icon(Icons.close,
+                        size: 18, color: AppTheme.textSecondaryColor),
                   ),
               ],
             ),
@@ -319,28 +341,79 @@ class _CrearOfertaScreenState extends State<CrearOfertaScreen> {
   ) {
     showModalBottomSheet(
       context: context,
-      builder: (context) => ListView.builder(
-        itemCount: jugadores.length,
-        itemBuilder: (context, index) {
-          final jugador = jugadores[index];
-          return ListTile(
-            leading: CircleAvatar(
-              backgroundImage: jugador['foto_url'] != null
-                  ? NetworkImage(jugador['foto_url'])
-                  : null,
-              child: jugador['foto_url'] == null
-                  ? Text(jugador['nombre'][0].toUpperCase())
-                  : null,
+      builder: (context) => Column(
+        children: [
+          Container(
+            padding: const EdgeInsets.fromLTRB(20, 16, 20, 12),
+            color: AppTheme.surfaceVariantColor,
+            child: Row(
+              children: [
+                const Icon(Icons.people, color: AppTheme.secondaryColor),
+                const SizedBox(width: 10),
+                const Text('Seleccionar jugador',
+                    style: TextStyle(
+                        fontWeight: FontWeight.bold, fontSize: 16)),
+              ],
             ),
-            title: Text(jugador['nombre']),
-            subtitle: Text(jugador['posicion']),
-            onTap: () {
-              onSelect(jugador);
-              Navigator.pop(context);
-            },
-          );
-        },
+          ),
+          Expanded(
+            child: jugadores.isEmpty
+                ? const Center(
+                    child: Text('No hay jugadores disponibles',
+                        style: TextStyle(color: AppTheme.textSecondaryColor)),
+                  )
+                : ListView.builder(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 12, vertical: 8),
+                    itemCount: jugadores.length,
+                    itemBuilder: (context, index) {
+                      final jugador = jugadores[index];
+                      return Card(
+                        margin: const EdgeInsets.only(bottom: 8),
+                        child: ListTile(
+                          leading: CircleAvatar(
+                            backgroundColor: _getPosicionColor(
+                                jugador['posicion'] ?? ''),
+                            child: Text(
+                              jugador['posicion'] ?? '?',
+                              style: const TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 11),
+                            ),
+                          ),
+                          title: Text(jugador['nombre'],
+                              style: const TextStyle(
+                                  fontWeight: FontWeight.w600)),
+                          subtitle: Text(
+                            '${jugador['posicion']}  •  Media: ${jugador['media_fifa']}',
+                            style: const TextStyle(
+                                color: AppTheme.textSecondaryColor,
+                                fontSize: 12),
+                          ),
+                          trailing: const Icon(Icons.add_circle,
+                              color: AppTheme.secondaryColor),
+                          onTap: () {
+                            onSelect(jugador);
+                            Navigator.pop(context);
+                          },
+                        ),
+                      );
+                    },
+                  ),
+          ),
+        ],
       ),
     );
+  }
+
+  Color _getPosicionColor(String posicion) {
+    switch (posicion) {
+      case 'POR': return const Color(0xFFE69B00);
+      case 'DEF': return const Color(0xFF1565C0);
+      case 'MED': return const Color(0xFF2E7D32);
+      case 'DEL': return const Color(0xFFC62828);
+      default:    return Colors.grey;
+    }
   }
 }

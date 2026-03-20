@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../services/api_service.dart';
 import '../../services/socket_service.dart';
+import '../../config/app_theme.dart';
 import 'crear_oferta_screen.dart';
 import 'dart:async';
 
@@ -371,11 +372,12 @@ class _ChatConversacionScreenState extends State<ChatConversacionScreen> {
           // Barra de entrada de mensaje
           Container(
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: AppTheme.surfaceColor,
+              border: const Border(top: BorderSide(color: AppTheme.borderColor)),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.1),
-                  blurRadius: 4,
+                  color: Colors.black.withOpacity(0.3),
+                  blurRadius: 8,
                   offset: const Offset(0, -2),
                 ),
               ],
@@ -450,7 +452,7 @@ class _ChatConversacionScreenState extends State<ChatConversacionScreen> {
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
               decoration: BoxDecoration(
-                color: esMio ? Colors.blue : Colors.grey[200],
+                color: esMio ? const Color(0xFF2979FF) : AppTheme.surfaceVariantColor,
                 borderRadius: BorderRadius.only(
                   topLeft: const Radius.circular(16),
                   topRight: const Radius.circular(16),
@@ -464,7 +466,7 @@ class _ChatConversacionScreenState extends State<ChatConversacionScreen> {
                   Text(
                     mensaje['contenido'] ?? '',
                     style: TextStyle(
-                      color: esMio ? Colors.white : Colors.black87,
+                      color: Colors.white,
                       fontSize: 15,
                     ),
                   ),
@@ -472,7 +474,7 @@ class _ChatConversacionScreenState extends State<ChatConversacionScreen> {
                   Text(
                     _formatearHora(mensaje['created_at']),
                     style: TextStyle(
-                      color: esMio ? Colors.white70 : Colors.grey[600],
+                      color: esMio ? Colors.white70 : AppTheme.textSecondaryColor,
                       fontSize: 11,
                     ),
                   ),

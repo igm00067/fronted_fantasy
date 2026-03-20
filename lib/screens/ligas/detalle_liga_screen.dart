@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import '../../services/api_service.dart';
+import '../../config/app_theme.dart';
 import 'mi_equipo_screen.dart';
 import 'mercado_screen.dart';
+import 'buscar_jugadores_screen.dart';
 import 'clasificacion_liga_screen.dart';
 import 'historial_mercado_screen.dart';
 import '../chat/chat_liga_screen.dart';
@@ -55,6 +57,24 @@ class _DetalleLigaScreenState extends State<DetalleLigaScreen> {
         ],
       ),
       body: _screens[_selectedIndex],
+      floatingActionButton: _selectedIndex == 2
+          ? Opacity(
+              opacity: 0.75,
+              child: FloatingActionButton(
+                backgroundColor: AppTheme.primaryColor,
+                tooltip: 'Buscar jugadores',
+                onPressed: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => BuscarJugadoresScreen(
+                      competicionId: widget.liga['competicion_id'],
+                    ),
+                  ),
+                ),
+                child: const Icon(Icons.search, color: AppTheme.secondaryColor, size: 26),
+              ),
+            )
+          : null,
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _selectedIndex,
         onTap: (index) => setState(() => _selectedIndex = index),
@@ -192,12 +212,12 @@ class _DashboardLigaTabState extends State<DashboardLigaTab> {
               child: Container(
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(16),
-                  gradient: LinearGradient(
+                  gradient: const LinearGradient(
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                     colors: [
-                      Colors.blue[50]!,
-                      Colors.white,
+                      AppTheme.surfaceVariantColor,
+                      AppTheme.surfaceColor,
                     ],
                   ),
                 ),
@@ -284,12 +304,12 @@ class _DashboardLigaTabState extends State<DashboardLigaTab> {
                 child: Container(
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(16),
-                    gradient: LinearGradient(
+                    gradient: const LinearGradient(
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
                       colors: [
-                        Colors.green[50]!,
-                        Colors.white,
+                        AppTheme.surfaceVariantColor,
+                        AppTheme.surfaceColor,
                       ],
                     ),
                   ),
@@ -328,8 +348,8 @@ class _DashboardLigaTabState extends State<DashboardLigaTab> {
                                   ),
                                   Text(
                                     miEquipo['nombre'],
-                                    style: TextStyle(
-                                      color: Colors.grey[600],
+                                    style: const TextStyle(
+                                      color: AppTheme.textSecondaryColor,
                                       fontSize: 14,
                                     ),
                                   ),
@@ -420,9 +440,9 @@ class _DashboardLigaTabState extends State<DashboardLigaTab> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppTheme.surfaceVariantColor,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey[200]!),
+        border: Border.all(color: AppTheme.borderColor),
       ),
       child: Column(
         children: [
@@ -443,9 +463,9 @@ class _DashboardLigaTabState extends State<DashboardLigaTab> {
                   children: [
                     Text(
                       label,
-                      style: TextStyle(
+                      style: const TextStyle(
                         fontSize: 13,
-                        color: Colors.grey[600],
+                        color: AppTheme.textSecondaryColor,
                         fontWeight: FontWeight.w500,
                       ),
                     ),
@@ -523,8 +543,8 @@ class _ActionCard extends StatelessWidget {
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
               colors: [
-                color.withOpacity(0.1),
-                color.withOpacity(0.05),
+                color.withOpacity(0.18),
+                AppTheme.surfaceColor,
               ],
             ),
           ),

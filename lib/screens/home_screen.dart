@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
+import '../config/app_theme.dart';
 import 'ligas/mis_ligas_screen.dart';
 import 'ligas/crear_liga_screen.dart';
 import 'ligas/unirse_liga_screen.dart';
@@ -47,7 +48,7 @@ class HomeScreen extends StatelessWidget {
                     Text(
                       usuario?['email'] ?? '',
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color: Colors.grey[600],
+                            color: AppTheme.textSecondaryColor,
                           ),
                     ),
                   ],
@@ -164,15 +165,15 @@ class _MenuCard extends StatelessWidget {
                     const SizedBox(height: 4),
                     Text(
                       subtitle,
-                      style: TextStyle(
+                      style: const TextStyle(
                         fontSize: 14,
-                        color: Colors.grey[600],
+                        color: AppTheme.textSecondaryColor,
                       ),
                     ),
                   ],
                 ),
               ),
-              Icon(Icons.chevron_right, color: Colors.grey[400]),
+              const Icon(Icons.chevron_right, color: AppTheme.textSecondaryColor),
             ],
           ),
         ),

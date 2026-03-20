@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import '../../services/api_service.dart';
+import '../../config/app_theme.dart';
+import '../../widgets/jugador_detalles_sheet.dart';
+import 'buscar_jugadores_screen.dart';
 import 'dart:async';
 
 class MercadoScreen extends StatefulWidget {
@@ -18,6 +21,7 @@ class MercadoScreen extends StatefulWidget {
 
 class _MercadoScreenState extends State<MercadoScreen> {
   List<dynamic> _jugadoresMercado = [];
+  double? _saldoDisponible;
   bool _cargando = true;
   String? _error;
   Timer? _timer;
@@ -40,10 +44,14 @@ class _MercadoScreenState extends State<MercadoScreen> {
 
   Future<void> _cargarMercado() async {
     try {
-      final mercado = await ApiService.getMercado(widget.ligaId);
+      final results = await Future.wait([
+        ApiService.getMercado(widget.ligaId),
+        ApiService.getSaldoDisponible(widget.ligaId),
+      ]);
       if (mounted) {
         setState(() {
-          _jugadoresMercado = mercado;
+          _jugadoresMercado = results[0] as List<dynamic>;
+          _saldoDisponible = results[1] as double;
           _cargando = false;
           _error = null;
         });
@@ -88,33 +96,43 @@ class _MercadoScreenState extends State<MercadoScreen> {
         children: [
           // Header
           Container(
-            padding: const EdgeInsets.all(16),
-            color: Colors.orange[50],
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            color: AppTheme.surfaceVariantColor,
             child: Row(
               children: [
-                Icon(Icons.store, color: Colors.orange[700]),
+                const Icon(Icons.store, color: AppTheme.secondaryColor),
                 const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'Mercado de Fichajes',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      Text(
-                        'Puja por los jugadores disponibles',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.grey[600],
-                        ),
-                      ),
-                    ],
+                const Expanded(
+                  child: Text(
+                    'Mercado de Fichajes',
+                    style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
                   ),
                 ),
+                if (_saldoDisponible != null)
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                    decoration: BoxDecoration(
+                      color: AppTheme.secondaryColor.withOpacity(0.15),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: AppTheme.secondaryColor.withOpacity(0.5)),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.account_balance_wallet,
+                            size: 14, color: AppTheme.secondaryColor),
+                        const SizedBox(width: 5),
+                        Text(
+                          '${_saldoDisponible!.toStringAsFixed(1)}M',
+                          style: const TextStyle(
+                            color: AppTheme.secondaryColor,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 13,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 IconButton(
                   icon: const Icon(Icons.refresh),
                   onPressed: _cargarMercado,
@@ -143,7 +161,7 @@ class _MercadoScreenState extends State<MercadoScreen> {
                             Text(
                               _error!.replaceAll('Exception: ', ''),
                               textAlign: TextAlign.center,
-                              style: TextStyle(color: Colors.grey[600]),
+                              style: const TextStyle(color: AppTheme.textSecondaryColor),
                             ),
                             const SizedBox(height: 16),
                             ElevatedButton.icon(
@@ -201,7 +219,9 @@ class _MercadoScreenState extends State<MercadoScreen> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             decoration: BoxDecoration(
-              color: tiempoRestante > 0 ? Colors.orange[100] : Colors.grey[300],
+              color: tiempoRestante > 0
+              ? AppTheme.secondaryColor.withOpacity(0.15)
+              : AppTheme.surfaceVariantColor,
               borderRadius: const BorderRadius.only(
                 topLeft: Radius.circular(12),
                 topRight: Radius.circular(12),
@@ -215,14 +235,18 @@ class _MercadoScreenState extends State<MercadoScreen> {
                     Icon(
                       Icons.timer,
                       size: 16,
-                      color: tiempoRestante > 0 ? Colors.orange[900] : Colors.grey[700],
+                      color: tiempoRestante > 0
+                          ? AppTheme.secondaryColor
+                          : AppTheme.textSecondaryColor,
                     ),
                     const SizedBox(width: 4),
                     Text(
                       _formatearTiempo(tiempoRestante),
                       style: TextStyle(
                         fontWeight: FontWeight.bold,
-                        color: tiempoRestante > 0 ? Colors.orange[900] : Colors.grey[700],
+                        color: tiempoRestante > 0
+                            ? AppTheme.secondaryColor
+                            : AppTheme.textSecondaryColor,
                       ),
                     ),
                   ],
@@ -283,17 +307,17 @@ class _MercadoScreenState extends State<MercadoScreen> {
               children: [
                 Text(
                   '${precioActual}M',
-                  style: TextStyle(
+                  style: const TextStyle(
                     fontWeight: FontWeight.bold,
                     fontSize: 20,
-                    color: Colors.green[700],
+                    color: AppTheme.secondaryColor,
                   ),
                 ),
-                Text(
-                  'Base: ${mercado['precio_base']}M',
+                const Text(
+                  'precio actual',
                   style: TextStyle(
-                    fontSize: 12,
-                    color: Colors.grey[600],
+                    fontSize: 11,
+                    color: AppTheme.textSecondaryColor,
                   ),
                 ),
               ],
@@ -320,10 +344,6 @@ class _MercadoScreenState extends State<MercadoScreen> {
                         : null,
                     icon: const Icon(Icons.gavel, size: 18),
                     label: const Text('Pujar'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.orange,
-                      foregroundColor: Colors.white,
-                    ),
                   ),
                 ),
               ],
@@ -335,45 +355,7 @@ class _MercadoScreenState extends State<MercadoScreen> {
   }
 
   void _mostrarDetallesJugador(Map<String, dynamic> jugador) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(jugador['nombre']),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('Posición: ${jugador['posicion']}'),
-              Text('Nacionalidad: ${jugador['nacionalidad']}'),
-              Text('Edad: ${jugador['edad']} años'),
-              Text('Precio: ${jugador['precio']}M'),
-              const Divider(),
-              const Text(
-                'Estadísticas FIFA:',
-                style: TextStyle(fontWeight: FontWeight.bold),
-              ),
-              Text('Velocidad: ${jugador['velocidad']}'),
-              Text('Tiro: ${jugador['tiro']}'),
-              Text('Pase: ${jugador['pase']}'),
-              Text('Regate: ${jugador['regate']}'),
-              Text('Defensa: ${jugador['defensa']}'),
-              Text('Físico: ${jugador['fisico']}'),
-              Text(
-                'Media: ${jugador['media_fifa']}',
-                style: const TextStyle(fontWeight: FontWeight.bold),
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cerrar'),
-          ),
-        ],
-      ),
-    );
+    mostrarDetallesJugador(context, jugador);
   }
 
   void _mostrarDialogoPuja(Map<String, dynamic> mercado, Map<String, dynamic> jugador) {
@@ -389,11 +371,41 @@ class _MercadoScreenState extends State<MercadoScreen> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Precio actual: ${precioActual}M'),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text('Precio actual: ${precioActual}M'),
+                if (_saldoDisponible != null)
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: AppTheme.secondaryColor.withOpacity(0.15),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: AppTheme.secondaryColor.withOpacity(0.5)),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.account_balance_wallet,
+                            size: 12, color: AppTheme.secondaryColor),
+                        const SizedBox(width: 4),
+                        Text(
+                          '${_saldoDisponible!.toStringAsFixed(1)}M',
+                          style: const TextStyle(
+                            color: AppTheme.secondaryColor,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+              ],
+            ),
             const SizedBox(height: 8),
-            Text(
-              'Tu puja debe ser mayor a ${precioActual}M',
-              style: TextStyle(color: Colors.grey[600], fontSize: 12),
+            const Text(
+              'La puja mínima es +0.5M sobre el precio actual',
+              style: TextStyle(color: AppTheme.textSecondaryColor, fontSize: 12),
             ),
             const SizedBox(height: 16),
             TextField(

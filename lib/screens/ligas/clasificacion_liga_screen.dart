@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../services/api_service.dart';
+import '../../config/app_theme.dart';
 import 'ver_equipo_usuario_screen.dart';
 //import '../chat/chat_conversacion_screen.dart';
 
@@ -69,7 +70,7 @@ class _ClasificacionLigaScreenState extends State<ClasificacionLigaScreen> {
                       Text(
                         _error!.replaceAll('Exception: ', ''),
                         textAlign: TextAlign.center,
-                        style: TextStyle(color: Colors.grey[600]),
+                        style: TextStyle(color: AppTheme.textSecondaryColor),
                       ),
                       const SizedBox(height: 16),
                       ElevatedButton.icon(
@@ -98,7 +99,7 @@ class _ClasificacionLigaScreenState extends State<ClasificacionLigaScreen> {
                           const SizedBox(height: 8),
                           Text(
                             'Invita a tus amigos a unirse',
-                            style: TextStyle(color: Colors.grey[600]),
+                            style: TextStyle(color: AppTheme.textSecondaryColor),
                           ),
                         ],
                       ),
@@ -127,7 +128,7 @@ class _ClasificacionLigaScreenState extends State<ClasificacionLigaScreen> {
                                   ),
                                   Text(
                                     '${_clasificacion.length} participantes',
-                                    style: TextStyle(color: Colors.grey[600]),
+                                    style: TextStyle(color: AppTheme.textSecondaryColor),
                                   ),
                                 ],
                               ),
@@ -163,8 +164,9 @@ class _ClasificacionLigaScreenState extends State<ClasificacionLigaScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
       decoration: BoxDecoration(
-        color: Colors.grey[200],
+        color: AppTheme.surfaceVariantColor,
         borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: AppTheme.borderColor),
       ),
       child: Row(
         children: [
@@ -252,7 +254,7 @@ class _ClasificacionLigaScreenState extends State<ClasificacionLigaScreen> {
                     Text(
                       participante['usuario_nombre'],
                       style: TextStyle(
-                        color: Colors.grey[600],
+                        color: AppTheme.textSecondaryColor,
                         fontSize: 12,
                       ),
                       maxLines: 1,

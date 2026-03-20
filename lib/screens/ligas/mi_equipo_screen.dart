@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../services/api_service.dart';
+import '../../config/app_theme.dart';
+import '../../widgets/jugador_detalles_sheet.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 
@@ -114,11 +116,9 @@ class _MiEquipoScreenState extends State<MiEquipoScreen> with SingleTickerProvid
     return Column(
       children: [
         Container(
-          color: Colors.grey[200],
+          color: AppTheme.surfaceColor,
           child: TabBar(
             controller: _tabController,
-            labelColor: Colors.black,
-            indicatorColor: Theme.of(context).primaryColor,
             tabs: const [
               Tab(text: 'Alineación'),
               Tab(text: 'Plantilla'),
@@ -142,28 +142,41 @@ class _MiEquipoScreenState extends State<MiEquipoScreen> with SingleTickerProvid
     return Column(
       children: [
         Container(
-          padding: const EdgeInsets.all(16),
-          color: Colors.grey[100],
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+          color: AppTheme.surfaceVariantColor,
           child: Row(
             children: [
               const Text(
                 'Formación:',
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 15,
+                  color: AppTheme.textSecondaryColor,
+                ),
               ),
               const SizedBox(width: 16),
               Expanded(
-                child: DropdownButton<String>(
-                  value: _formacionSeleccionada,
-                  isExpanded: true,
-                  items: ['4-3-3', '4-4-2', '3-5-2', '5-3-2'].map((formacion) {
-                    return DropdownMenuItem(
-                      value: formacion,
-                      child: Text(formacion, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                    );
-                  }).toList(),
-                  onChanged: (value) {
-                    setState(() => _formacionSeleccionada = value!);
-                  },
+                child: DropdownButtonHideUnderline(
+                  child: DropdownButton<String>(
+                    value: _formacionSeleccionada,
+                    isExpanded: true,
+                    dropdownColor: AppTheme.surfaceColor,
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: AppTheme.secondaryColor,
+                    ),
+                    icon: const Icon(Icons.arrow_drop_down, color: AppTheme.secondaryColor),
+                    items: ['4-3-3', '4-4-2', '3-5-2', '5-3-2'].map((formacion) {
+                      return DropdownMenuItem(
+                        value: formacion,
+                        child: Text(formacion),
+                      );
+                    }).toList(),
+                    onChanged: (value) {
+                      setState(() => _formacionSeleccionada = value!);
+                    },
+                  ),
                 ),
               ),
             ],
@@ -184,14 +197,15 @@ class _MiEquipoScreenState extends State<MiEquipoScreen> with SingleTickerProvid
             ),
           ),
         ),
-        Padding(
-          padding: const EdgeInsets.all(16),
+        Container(
+          color: AppTheme.surfaceVariantColor,
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           child: ElevatedButton.icon(
             onPressed: _guardarAlineacion,
-            icon: const Icon(Icons.save),
+            icon: const Icon(Icons.save_rounded),
             label: const Text('Guardar Alineación'),
             style: ElevatedButton.styleFrom(
-              padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 32),
+              minimumSize: const Size.fromHeight(48),
             ),
           ),
         ),
@@ -210,62 +224,62 @@ class _MiEquipoScreenState extends State<MiEquipoScreen> with SingleTickerProvid
         switch (_formacionSeleccionada) {
           case '4-4-2':
             posiciones = {
-              'POR': Offset(width * 0.5, height * 0.9),
-              'DEF1': Offset(width * 0.15, height * 0.7),
-              'DEF2': Offset(width * 0.35, height * 0.7),
-              'DEF3': Offset(width * 0.65, height * 0.7),
-              'DEF4': Offset(width * 0.85, height * 0.7),
-              'MED1': Offset(width * 0.15, height * 0.45),
-              'MED2': Offset(width * 0.35, height * 0.45),
-              'MED3': Offset(width * 0.65, height * 0.45),
-              'MED4': Offset(width * 0.85, height * 0.45),
-              'DEL1': Offset(width * 0.35, height * 0.15),
-              'DEL2': Offset(width * 0.65, height * 0.15),
+              'POR': Offset(width * 0.5,  height * 0.87),
+              'DEF1': Offset(width * 0.15, height * 0.63),
+              'DEF2': Offset(width * 0.35, height * 0.63),
+              'DEF3': Offset(width * 0.65, height * 0.63),
+              'DEF4': Offset(width * 0.85, height * 0.63),
+              'MED1': Offset(width * 0.15, height * 0.37),
+              'MED2': Offset(width * 0.35, height * 0.37),
+              'MED3': Offset(width * 0.65, height * 0.37),
+              'MED4': Offset(width * 0.85, height * 0.37),
+              'DEL1': Offset(width * 0.35, height * 0.10),
+              'DEL2': Offset(width * 0.65, height * 0.10),
             };
             break;
           case '4-3-3':
             posiciones = {
-              'POR': Offset(width * 0.5, height * 0.9),
-              'DEF1': Offset(width * 0.15, height * 0.7),
-              'DEF2': Offset(width * 0.35, height * 0.7),
-              'DEF3': Offset(width * 0.65, height * 0.7),
-              'DEF4': Offset(width * 0.85, height * 0.7),
-              'MED1': Offset(width * 0.25, height * 0.45),
-              'MED2': Offset(width * 0.5, height * 0.45),
-              'MED3': Offset(width * 0.75, height * 0.45),
-              'DEL1': Offset(width * 0.2, height * 0.15),
-              'DEL2': Offset(width * 0.5, height * 0.15),
-              'DEL3': Offset(width * 0.8, height * 0.15),
+              'POR': Offset(width * 0.5,  height * 0.87),
+              'DEF1': Offset(width * 0.15, height * 0.63),
+              'DEF2': Offset(width * 0.35, height * 0.63),
+              'DEF3': Offset(width * 0.65, height * 0.63),
+              'DEF4': Offset(width * 0.85, height * 0.63),
+              'MED1': Offset(width * 0.25, height * 0.37),
+              'MED2': Offset(width * 0.5,  height * 0.37),
+              'MED3': Offset(width * 0.75, height * 0.37),
+              'DEL1': Offset(width * 0.2,  height * 0.10),
+              'DEL2': Offset(width * 0.5,  height * 0.10),
+              'DEL3': Offset(width * 0.8,  height * 0.10),
             };
             break;
           case '3-5-2':
             posiciones = {
-              'POR': Offset(width * 0.5, height * 0.9),
-              'DEF1': Offset(width * 0.25, height * 0.7),
-              'DEF2': Offset(width * 0.5, height * 0.7),
-              'DEF3': Offset(width * 0.75, height * 0.7),
-              'MED1': Offset(width * 0.15, height * 0.45),
-              'MED2': Offset(width * 0.3, height * 0.45),
-              'MED3': Offset(width * 0.5, height * 0.45),
-              'MED4': Offset(width * 0.7, height * 0.45),
-              'MED5': Offset(width * 0.85, height * 0.45),
-              'DEL1': Offset(width * 0.35, height * 0.15),
-              'DEL2': Offset(width * 0.65, height * 0.15),
+              'POR': Offset(width * 0.5,  height * 0.87),
+              'DEF1': Offset(width * 0.25, height * 0.63),
+              'DEF2': Offset(width * 0.5,  height * 0.63),
+              'DEF3': Offset(width * 0.75, height * 0.63),
+              'MED1': Offset(width * 0.1,  height * 0.37),
+              'MED2': Offset(width * 0.3,  height * 0.37),
+              'MED3': Offset(width * 0.5,  height * 0.37),
+              'MED4': Offset(width * 0.7,  height * 0.37),
+              'MED5': Offset(width * 0.9,  height * 0.37),
+              'DEL1': Offset(width * 0.35, height * 0.10),
+              'DEL2': Offset(width * 0.65, height * 0.10),
             };
             break;
           case '5-3-2':
             posiciones = {
-              'POR': Offset(width * 0.5, height * 0.9),
-              'DEF1': Offset(width * 0.1, height * 0.7),
-              'DEF2': Offset(width * 0.3, height * 0.7),
-              'DEF3': Offset(width * 0.5, height * 0.7),
-              'DEF4': Offset(width * 0.7, height * 0.7),
-              'DEF5': Offset(width * 0.9, height * 0.7),
-              'MED1': Offset(width * 0.25, height * 0.45),
-              'MED2': Offset(width * 0.5, height * 0.45),
-              'MED3': Offset(width * 0.75, height * 0.45),
-              'DEL1': Offset(width * 0.35, height * 0.15),
-              'DEL2': Offset(width * 0.65, height * 0.15),
+              'POR': Offset(width * 0.5,  height * 0.87),
+              'DEF1': Offset(width * 0.1,  height * 0.63),
+              'DEF2': Offset(width * 0.3,  height * 0.63),
+              'DEF3': Offset(width * 0.5,  height * 0.63),
+              'DEF4': Offset(width * 0.7,  height * 0.63),
+              'DEF5': Offset(width * 0.9,  height * 0.63),
+              'MED1': Offset(width * 0.25, height * 0.37),
+              'MED2': Offset(width * 0.5,  height * 0.37),
+              'MED3': Offset(width * 0.75, height * 0.37),
+              'DEL1': Offset(width * 0.35, height * 0.10),
+              'DEL2': Offset(width * 0.65, height * 0.10),
             };
             break;
           default:
@@ -273,6 +287,7 @@ class _MiEquipoScreenState extends State<MiEquipoScreen> with SingleTickerProvid
         }
 
         return Stack(
+          clipBehavior: Clip.none,
           children: _posicionesActivas.map((pos) {
             final offset = posiciones[pos] ?? Offset.zero;
             final jugador = _alineacion[pos];
@@ -282,6 +297,9 @@ class _MiEquipoScreenState extends State<MiEquipoScreen> with SingleTickerProvid
               top: offset.dy - 35,
               child: GestureDetector(
                 onTap: () => _seleccionarJugador(pos),
+                onLongPress: jugador != null
+                    ? () => mostrarDetallesJugador(context, jugador)
+                    : null,
                 child: _buildJugadorCard(jugador, pos),
               ),
             );
@@ -297,45 +315,49 @@ class _MiEquipoScreenState extends State<MiEquipoScreen> with SingleTickerProvid
         : posicion.startsWith('MED') ? 'MED'
         : 'DEL';
     
+    final posColor = jugador != null ? _getColorPosicion(jugador['posicion']) : AppTheme.surfaceVariantColor;
+
     return Column(
       children: [
         Container(
-          width: 70,
-          height: 70,
+          width: 68,
+          height: 68,
           decoration: BoxDecoration(
-            color: jugador != null ? Colors.blue : Colors.grey[300],
+            color: posColor,
             shape: BoxShape.circle,
-            border: Border.all(color: Colors.white, width: 3),
+            border: Border.all(
+              color: jugador != null ? Colors.white : AppTheme.secondaryColor,
+              width: jugador != null ? 2.5 : 2,
+            ),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.3),
+                color: Colors.black.withOpacity(0.5),
                 blurRadius: 8,
-                offset: const Offset(0, 4),
+                offset: const Offset(0, 3),
               ),
             ],
           ),
           child: jugador != null
-              ? ClipOval(
-                  child: Center(
-                    child: Text(
-                      jugador['nombre'].split(' ').last.substring(0, 3).toUpperCase(),
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 14,
-                      ),
+              ? Center(
+                  child: Text(
+                    jugador['nombre'].split(' ').last.substring(0, 3).toUpperCase(),
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 13,
+                      shadows: [Shadow(color: Colors.black45, blurRadius: 4)],
                     ),
                   ),
                 )
-              : Center(
-                  child: Icon(Icons.add, color: Colors.grey[600], size: 30),
+              : const Center(
+                  child: Icon(Icons.add, color: AppTheme.secondaryColor, size: 28),
                 ),
         ),
         const SizedBox(height: 4),
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: Colors.black.withOpacity(0.65),
             borderRadius: BorderRadius.circular(10),
           ),
           child: Text(
@@ -343,6 +365,7 @@ class _MiEquipoScreenState extends State<MiEquipoScreen> with SingleTickerProvid
             style: const TextStyle(
               fontSize: 10,
               fontWeight: FontWeight.bold,
+              color: Colors.white,
             ),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
@@ -362,86 +385,114 @@ class _MiEquipoScreenState extends State<MiEquipoScreen> with SingleTickerProvid
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.sports_soccer, size: 80, color: Colors.grey),
+            Icon(Icons.sports_soccer, size: 80, color: AppTheme.textSecondaryColor),
             SizedBox(height: 16),
             Text('No tienes jugadores en tu plantilla'),
             SizedBox(height: 8),
-            Text('Hubo un error al cargar tus jugadores'),
+            Text(
+              'Ve al mercado para fichar jugadores',
+              style: TextStyle(color: AppTheme.textSecondaryColor),
+            ),
           ],
         ),
       );
     }
 
-    return ListView.builder(
-      padding: const EdgeInsets.all(16),
-      itemCount: _plantilla.length,
-      itemBuilder: (context, index) {
-        final jugador = _plantilla[index];
-        return Card(
-          margin: const EdgeInsets.only(bottom: 12),
-          child: ListTile(
-            leading: CircleAvatar(
-              backgroundColor: _getColorPosicion(jugador['posicion']),
-              child: Text(
-                jugador['posicion'],
-                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12),
+    // Agrupar por posición
+    final grupos = {'POR': [], 'DEF': [], 'MED': [], 'DEL': []};
+    for (final j in _plantilla) {
+      final pos = j['posicion'] as String;
+      if (grupos.containsKey(pos)) grupos[pos]!.add(j);
+    }
+
+    return ListView(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      children: grupos.entries.where((e) => e.value.isNotEmpty).map((entry) {
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+              child: Row(
+                children: [
+                  Container(
+                    width: 4,
+                    height: 16,
+                    decoration: BoxDecoration(
+                      color: _getColorPosicion(entry.key),
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    _nombrePosicion(entry.key),
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 13,
+                      color: AppTheme.textSecondaryColor,
+                      letterSpacing: 1,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    '(${entry.value.length})',
+                    style: const TextStyle(color: AppTheme.textSecondaryColor, fontSize: 12),
+                  ),
+                ],
               ),
             ),
-            title: Text(jugador['nombre'], style: const TextStyle(fontWeight: FontWeight.bold)),
-            subtitle: Text('Valor: ${jugador['precio']}M • Media: ${jugador['media_fifa']}'),
-            trailing: IconButton(
-              icon: const Icon(Icons.info_outline),
-              onPressed: () => _mostrarDetallesJugador(jugador),
-            ),
-          ),
+            ...entry.value.map<Widget>((jugador) => Card(
+              margin: const EdgeInsets.only(bottom: 8),
+              child: ListTile(
+                contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+                leading: CircleAvatar(
+                  backgroundColor: _getColorPosicion(jugador['posicion']),
+                  child: Text(
+                    jugador['posicion'],
+                    style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 11),
+                  ),
+                ),
+                title: Text(
+                  jugador['nombre'],
+                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                ),
+                subtitle: Text(
+                  '${jugador['precio']}M  •  Media: ${jugador['media_fifa']}',
+                  style: const TextStyle(color: AppTheme.textSecondaryColor, fontSize: 12),
+                ),
+                trailing: IconButton(
+                  icon: const Icon(Icons.info_outline, color: AppTheme.secondaryColor),
+                  onPressed: () => _mostrarDetallesJugador(jugador),
+                ),
+              ),
+            )),
+          ],
         );
-      },
+      }).toList(),
     );
   }
 
   void _mostrarDetallesJugador(Map<String, dynamic> jugador) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(jugador['nombre']),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('Posición: ${jugador['posicion']}'),
-              Text('Nacionalidad: ${jugador['nacionalidad']}'),
-              Text('Edad: ${jugador['edad']} años'),
-              Text('Precio: ${jugador['precio']}M'),
-              const Divider(),
-              const Text('Estadísticas FIFA:', style: TextStyle(fontWeight: FontWeight.bold)),
-              Text('Velocidad: ${jugador['velocidad']}'),
-              Text('Tiro: ${jugador['tiro']}'),
-              Text('Pase: ${jugador['pase']}'),
-              Text('Regate: ${jugador['regate']}'),
-              Text('Defensa: ${jugador['defensa']}'),
-              Text('Físico: ${jugador['fisico']}'),
-              Text('Media: ${jugador['media_fifa']}', style: const TextStyle(fontWeight: FontWeight.bold)),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cerrar'),
-          ),
-        ],
-      ),
-    );
+    mostrarDetallesJugador(context, jugador);
   }
 
   Color _getColorPosicion(String posicion) {
     switch (posicion) {
-      case 'POR': return Colors.amber;
-      case 'DEF': return Colors.blue;
-      case 'MED': return Colors.green;
-      case 'DEL': return Colors.red;
+      case 'POR': return const Color(0xFFE69B00);
+      case 'DEF': return const Color(0xFF1565C0);
+      case 'MED': return const Color(0xFF2E7D32);
+      case 'DEL': return const Color(0xFFC62828);
       default: return Colors.grey;
+    }
+  }
+
+  String _nombrePosicion(String pos) {
+    switch (pos) {
+      case 'POR': return 'PORTEROS';
+      case 'DEF': return 'DEFENSAS';
+      case 'MED': return 'CENTROCAMPISTAS';
+      case 'DEL': return 'DELANTEROS';
+      default: return pos;
     }
   }
 
@@ -465,45 +516,80 @@ class _MiEquipoScreenState extends State<MiEquipoScreen> with SingleTickerProvid
         j['posicion'] == posicionTipo && !jugadoresAlineados.contains(j['id'])
       ).toList();
       
-      return Container(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Seleccionar $posicionTipo',
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+      return Column(
+        children: [
+          Container(
+            padding: const EdgeInsets.fromLTRB(20, 16, 20, 12),
+            decoration: const BoxDecoration(
+              color: AppTheme.surfaceVariantColor,
+              borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
             ),
-            const SizedBox(height: 16),
-            Expanded(
-              child: jugadoresDisponibles.isEmpty
-                  ? const Center(child: Text('No tienes jugadores disponibles en esta posición'))
-                  : ListView.builder(
-                      itemCount: jugadoresDisponibles.length,
-                      itemBuilder: (context, index) {
-                        final jugador = jugadoresDisponibles[index];
-                        return ListTile(
+            child: Row(
+              children: [
+                Container(
+                  width: 4,
+                  height: 20,
+                  decoration: BoxDecoration(
+                    color: _getColorPosicion(posicionTipo),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Text(
+                  'Seleccionar ${_nombrePosicion(posicionTipo)}',
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                ),
+              ],
+            ),
+          ),
+          Expanded(
+            child: jugadoresDisponibles.isEmpty
+                ? const Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.person_off, size: 48, color: AppTheme.textSecondaryColor),
+                        SizedBox(height: 12),
+                        Text(
+                          'No hay jugadores disponibles',
+                          style: TextStyle(color: AppTheme.textSecondaryColor),
+                        ),
+                      ],
+                    ),
+                  )
+                : ListView.builder(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    itemCount: jugadoresDisponibles.length,
+                    itemBuilder: (context, index) {
+                      final jugador = jugadoresDisponibles[index];
+                      return Card(
+                        margin: const EdgeInsets.only(bottom: 8),
+                        child: ListTile(
                           leading: CircleAvatar(
                             backgroundColor: _getColorPosicion(jugador['posicion']),
                             child: Text(
                               jugador['posicion'],
-                              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12),
+                              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 11),
                             ),
                           ),
-                          title: Text(jugador['nombre']),
-                          subtitle: Text('Media: ${jugador['media_fifa']}'),
+                          title: Text(jugador['nombre'], style: const TextStyle(fontWeight: FontWeight.w600)),
+                          subtitle: Text(
+                            'Media: ${jugador['media_fifa']}  •  ${jugador['precio']}M',
+                            style: const TextStyle(color: AppTheme.textSecondaryColor, fontSize: 12),
+                          ),
+                          trailing: const Icon(Icons.add_circle, color: AppTheme.secondaryColor),
                           onTap: () {
                             setState(() {
                               _alineacion[posicion] = jugador;
                             });
                             Navigator.pop(context);
                           },
-                        );
-                      },
-                    ),
-            ),
-          ],
-        ),
+                        ),
+                      );
+                    },
+                  ),
+          ),
+        ],
       );
     },
   );

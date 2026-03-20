@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../services/api_service.dart';
+import '../../config/app_theme.dart';
 import 'chat_conversacion_screen.dart';
 
 class ChatLigaScreen extends StatefulWidget {
@@ -49,81 +50,64 @@ class _ChatLigaScreenState extends State<ChatLigaScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Miembros de la Liga'),
-        backgroundColor: Colors.blue,
+    if (_cargando) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    if (_error != null) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.error_outline, size: 60, color: Colors.red[300]),
+            const SizedBox(height: 16),
+            Text('Error al cargar miembros', style: Theme.of(context).textTheme.titleLarge),
+            const SizedBox(height: 8),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 32),
+              child: Text(
+                _error!.replaceAll('Exception: ', ''),
+                textAlign: TextAlign.center,
+                style: const TextStyle(color: AppTheme.textSecondaryColor),
+              ),
+            ),
+            const SizedBox(height: 16),
+            ElevatedButton.icon(
+              onPressed: _cargarDatos,
+              icon: const Icon(Icons.refresh),
+              label: const Text('Reintentar'),
+            ),
+          ],
+        ),
+      );
+    }
+
+    if (_participantes.isEmpty) {
+      return const Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.people_outline, size: 80, color: AppTheme.textSecondaryColor),
+            SizedBox(height: 16),
+            Text('No hay miembros', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+          ],
+        ),
+      );
+    }
+
+    return RefreshIndicator(
+      onRefresh: _cargarDatos,
+      child: ListView.builder(
+        padding: const EdgeInsets.all(8),
+        itemCount: _participantes.length,
+        itemBuilder: (context, index) {
+          final participante = _participantes[index];
+          if (participante['usuario_id'] == _currentUserId) {
+            return const SizedBox.shrink();
+          }
+          return _buildMiembroCard(participante);
+        },
       ),
-      body: _cargando
-          ? const Center(child: CircularProgressIndicator())
-          : _error != null
-              ? Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.error_outline, size: 60, color: Colors.red[300]),
-                      const SizedBox(height: 16),
-                      Text(
-                        'Error al cargar miembros',
-                        style: Theme.of(context).textTheme.titleLarge,
-                      ),
-                      const SizedBox(height: 8),
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 32),
-                        child: Text(
-                          _error!.replaceAll('Exception: ', ''),
-                          textAlign: TextAlign.center,
-                          style: TextStyle(color: Colors.grey[600]),
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      ElevatedButton.icon(
-                        onPressed: _cargarDatos,
-                        icon: const Icon(Icons.refresh),
-                        label: const Text('Reintentar'),
-                      ),
-                    ],
-                  ),
-                )
-              : _participantes.isEmpty
-                  ? Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(
-                            Icons.people_outline,
-                            size: 80,
-                            color: Colors.grey[300],
-                          ),
-                          const SizedBox(height: 16),
-                          const Text(
-                            'No hay miembros',
-                            style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ],
-                      ),
-                    )
-                  : RefreshIndicator(
-                      onRefresh: _cargarDatos,
-                      child: ListView.builder(
-                        padding: const EdgeInsets.all(8),
-                        itemCount: _participantes.length,
-                        itemBuilder: (context, index) {
-                          final participante = _participantes[index];
-                          final esYo = participante['usuario_id'] == _currentUserId;
-                          
-                          if (esYo) {
-                            // No mostrar al usuario actual
-                            return const SizedBox.shrink();
-                          }
-                          
-                          return _buildMiembroCard(participante);
-                        },
-                      ),
-                    ),
     );
   }
 
