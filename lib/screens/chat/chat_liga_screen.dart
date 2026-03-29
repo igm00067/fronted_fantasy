@@ -14,6 +14,7 @@ class ChatLigaScreen extends StatefulWidget {
 
 class _ChatLigaScreenState extends State<ChatLigaScreen> {
   List<dynamic> _participantes = [];
+  List<dynamic> _conversaciones = [];
   int? _currentUserId;
   bool _cargando = true;
   String? _error;
@@ -24,29 +25,62 @@ class _ChatLigaScreenState extends State<ChatLigaScreen> {
     _cargarDatos();
   }
 
- Future<void> _cargarDatos() async {
-  setState(() {
-    _cargando = true;
-    _error = null;
-  });
-
-  try {
-    final userData = await ApiService.getCurrentUser();
-    final clasificacion = await ApiService.getClasificacion(widget.ligaId);
-
+  Future<void> _cargarDatos() async {
     setState(() {
-      _currentUserId = userData['id'];
-      // ← CAMBIO: Usar 'clasificacion' en lugar de 'participantes'
-      _participantes = clasificacion['clasificacion'] ?? [];
-      _cargando = false;
+      _cargando = true;
+      _error = null;
     });
-  } catch (e) {
-    setState(() {
-      _error = e.toString();
-      _cargando = false;
-    });
+
+    try {
+      final userData = await ApiService.getCurrentUser();
+      final ligaData = await ApiService.getLiga(widget.ligaId);
+      final clasificacion = await ApiService.getClasificacion(widget.ligaId);
+
+      // Cargar conversaciones existentes para obtener ultimo mensaje y no leidos
+      List<dynamic> conversaciones = [];
+      try {
+        conversaciones = await ApiService.getConversaciones(widget.ligaId);
+      } catch (_) {
+        // Si falla, seguimos sin conversaciones
+      }
+
+      // Crear mapa de abandonado por usuario_id desde los participantes de la liga
+      final participantesLiga = ligaData['participantes'] as List<dynamic>? ?? [];
+      final abandonadoMap = <int, bool>{};
+      for (final p in participantesLiga) {
+        abandonadoMap[p['usuario_id']] = p['abandonado'] == true;
+      }
+
+      // Enriquecer clasificacion con campo abandonado
+      final listaClasificacion = clasificacion['clasificacion'] as List<dynamic>? ?? [];
+      for (final c in listaClasificacion) {
+        c['abandonado'] = abandonadoMap[c['usuario_id']] ?? false;
+      }
+
+      setState(() {
+        _currentUserId = userData['id'];
+        _participantes = listaClasificacion;
+        _conversaciones = conversaciones;
+        _cargando = false;
+      });
+    } catch (e) {
+      setState(() {
+        _error = e.toString();
+        _cargando = false;
+      });
+    }
   }
-}
+
+  /// Busca la conversación existente con un usuario para obtener último mensaje y no leídos
+  Map<String, dynamic>? _getConversacionConUsuario(int usuarioId) {
+    for (final conv in _conversaciones) {
+      final otroUsuario = conv['otro_usuario'];
+      if (otroUsuario != null && otroUsuario['id'] == usuarioId) {
+        return conv as Map<String, dynamic>;
+      }
+    }
+    return null;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -112,97 +146,132 @@ class _ChatLigaScreenState extends State<ChatLigaScreen> {
   }
 
   Widget _buildMiembroCard(Map<String, dynamic> participante) {
+    final bool abandonado = participante['abandonado'] == true;
+    final int usuarioId = participante['usuario_id'];
+    final conversacion = _getConversacionConUsuario(usuarioId);
+
+    // Obtener último mensaje y no leídos de la conversación
+    String? ultimoMensajeTexto;
+    int mensajesNoLeidos = 0;
+
+    if (conversacion != null) {
+      final ultimoMensaje = conversacion['ultimo_mensaje'];
+      if (ultimoMensaje != null) {
+        final contenido = ultimoMensaje['contenido'] as String? ?? '';
+        final tipo = ultimoMensaje['tipo'] as String? ?? 'TEXTO';
+        if (tipo == 'OFERTA') {
+          ultimoMensajeTexto = 'Oferta de intercambio';
+        } else {
+          ultimoMensajeTexto = contenido;
+        }
+      }
+      mensajesNoLeidos = conversacion['mensajes_no_leidos'] ?? 0;
+    }
+
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       elevation: 2,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
       ),
-      child: ListTile(
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        leading: Stack(
-          children: [
-            CircleAvatar(
-              backgroundColor: Colors.blue,
-              radius: 28,
-              child: Text(
-                participante['usuario_nombre'][0].toUpperCase(),
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 20,
-                ),
-              ),
-            ),
-            // Badge de posición
-            Positioned(
-              right: 0,
-              bottom: 0,
-              child: Container(
-                padding: const EdgeInsets.all(4),
-                decoration: BoxDecoration(
-                  color: _getPositionColor(participante['posicion']),
-                  shape: BoxShape.circle,
-                  border: Border.all(color: Colors.white, width: 2),
-                ),
+      child: Opacity(
+        opacity: abandonado ? 0.5 : 1.0,
+        child: ListTile(
+          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          leading: Stack(
+            clipBehavior: Clip.none,
+            children: [
+              CircleAvatar(
+                backgroundColor: abandonado ? Colors.grey : Colors.blue,
+                radius: 28,
                 child: Text(
-                  '${participante['posicion']}',
+                  participante['usuario_nombre'][0].toUpperCase(),
                   style: const TextStyle(
                     color: Colors.white,
-                    fontSize: 10,
                     fontWeight: FontWeight.bold,
+                    fontSize: 20,
                   ),
                 ),
               ),
-            ),
-          ],
-        ),
-        title: Text(
-          participante['usuario_nombre'],
-          style: const TextStyle(
-            fontWeight: FontWeight.bold,
-            fontSize: 16,
+              if (mensajesNoLeidos > 0)
+                Positioned(
+                  right: -4,
+                  top: -4,
+                  child: Container(
+                    padding: const EdgeInsets.all(4),
+                    constraints: const BoxConstraints(minWidth: 22, minHeight: 22),
+                    decoration: BoxDecoration(
+                      color: Colors.red,
+                      shape: BoxShape.circle,
+                      border: Border.all(color: AppTheme.surfaceColor, width: 2),
+                    ),
+                    child: Center(
+                      child: Text(
+                        mensajesNoLeidos > 99 ? '99+' : '$mensajesNoLeidos',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+            ],
           ),
-        ),
-        subtitle: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const SizedBox(height: 4),
-            Text(
-              participante['equipo_nombre'],
-              style: TextStyle(
-                color: Colors.grey[600],
-                fontSize: 14,
-              ),
+          title: Text(
+            participante['usuario_nombre'],
+            style: const TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 16,
             ),
-            const SizedBox(height: 4),
-            Row(
-              children: [
-                Icon(Icons.stars, size: 16, color: Colors.amber[700]),
-                const SizedBox(width: 4),
+          ),
+          subtitle: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const SizedBox(height: 4),
+              if (abandonado) ...[
                 Text(
-                  '${participante['puntos_totales']} pts',
+                  'Ha abandonado la liga',
                   style: TextStyle(
-                    color: Colors.grey[700],
+                    color: Colors.red[400],
                     fontWeight: FontWeight.w600,
                     fontSize: 13,
                   ),
                 ),
+              ] else if (ultimoMensajeTexto != null) ...[
+                Text(
+                  ultimoMensajeTexto,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: mensajesNoLeidos > 0
+                        ? Colors.white
+                        : Colors.grey[500],
+                    fontSize: 13,
+                    fontWeight: mensajesNoLeidos > 0
+                        ? FontWeight.w600
+                        : FontWeight.normal,
+                  ),
+                ),
+              ] else ...[
+                Text(
+                  participante['equipo_nombre'],
+                  style: TextStyle(
+                    color: Colors.grey[600],
+                    fontSize: 14,
+                  ),
+                ),
               ],
-            ),
-          ],
+            ],
+          ),
+          trailing: abandonado
+              ? Icon(Icons.block, color: Colors.red[300])
+              : const Icon(Icons.chat_bubble, color: Colors.blue),
+          onTap: abandonado ? null : () => _abrirChat(participante),
         ),
-        trailing: const Icon(Icons.chat_bubble, color: Colors.blue),
-        onTap: () => _abrirChat(participante),
       ),
     );
-  }
-
-  Color _getPositionColor(int posicion) {
-    if (posicion == 1) return Colors.amber;
-    if (posicion == 2) return Colors.grey[400]!;
-    if (posicion == 3) return Colors.brown[300]!;
-    return Colors.blue;
   }
 
   Future<void> _abrirChat(Map<String, dynamic> participante) async {
@@ -227,7 +296,7 @@ class _ChatLigaScreenState extends State<ChatLigaScreen> {
 
       // Navegar al chat
       if (mounted) {
-        Navigator.push(
+        await Navigator.push(
           context,
           MaterialPageRoute(
             builder: (_) => ChatConversacionScreen(
@@ -240,6 +309,8 @@ class _ChatLigaScreenState extends State<ChatLigaScreen> {
             ),
           ),
         );
+        // Recargar al volver del chat para actualizar último mensaje y no leídos
+        _cargarDatos();
       }
     } catch (e) {
       // Cerrar loading si hay error

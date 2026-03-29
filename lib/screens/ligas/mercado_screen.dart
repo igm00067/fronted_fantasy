@@ -24,21 +24,34 @@ class _MercadoScreenState extends State<MercadoScreen> {
   double? _saldoDisponible;
   bool _cargando = true;
   String? _error;
-  Timer? _timer;
+  Timer? _pollTimer;
+  Timer? _countdownTimer;
+  // Mapa local id -> segundos restantes para el countdown por segundo
+  final Map<int, int> _tiemposLocales = {};
 
   @override
   void initState() {
     super.initState();
     _cargarMercado();
-    // Actualizar cada 5 segundos
-    _timer = Timer.periodic(const Duration(seconds: 5), (timer) {
+    // Sincronizar datos con el servidor cada 5 segundos
+    _pollTimer = Timer.periodic(const Duration(seconds: 5), (_) {
       _cargarMercado();
+    });
+    // Decrementar countdown localmente cada segundo sin llamar al servidor
+    _countdownTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (!mounted) return;
+      setState(() {
+        for (final id in _tiemposLocales.keys.toList()) {
+          if (_tiemposLocales[id]! > 0) _tiemposLocales[id] = _tiemposLocales[id]! - 1;
+        }
+      });
     });
   }
 
   @override
   void dispose() {
-    _timer?.cancel();
+    _pollTimer?.cancel();
+    _countdownTimer?.cancel();
     super.dispose();
   }
 
@@ -49,8 +62,15 @@ class _MercadoScreenState extends State<MercadoScreen> {
         ApiService.getSaldoDisponible(widget.ligaId),
       ]);
       if (mounted) {
+        final lista = results[0] as List<dynamic>;
+        // Sincronizar tiempos locales con los del servidor
+        for (final item in lista) {
+          final id = item['id'] as int;
+          final segundos = item['tiempo_restante_segundos'] as int? ?? 0;
+          _tiemposLocales[id] = segundos;
+        }
         setState(() {
-          _jugadoresMercado = results[0] as List<dynamic>;
+          _jugadoresMercado = lista;
           _saldoDisponible = results[1] as double;
           _cargando = false;
           _error = null;
@@ -206,7 +226,8 @@ class _MercadoScreenState extends State<MercadoScreen> {
   Widget _buildJugadorCard(Map<String, dynamic> item) {
     final jugador = item['jugador'];
     final mercado = item;
-    final tiempoRestante = mercado['tiempo_restante_segundos'] ?? 0;
+    final id = item['id'] as int;
+    final tiempoRestante = _tiemposLocales[id] ?? 0;
     final mejorPostor = mercado['mejor_postor'];
     final precioActual = mercado['precio_actual'];
 

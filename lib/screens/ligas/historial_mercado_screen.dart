@@ -59,6 +59,7 @@ class _HistorialMercadoScreenState extends State<HistorialMercadoScreen> {
       case 'FICHAJE_MERCADO':  return Icons.shopping_cart;
       case 'VENTA':            return Icons.sell;
       case 'FICHAJE_INICIAL':  return Icons.card_giftcard;
+      case 'ABANDONO':         return Icons.exit_to_app;
       default:                 return Icons.swap_horiz;
     }
   }
@@ -68,6 +69,7 @@ class _HistorialMercadoScreenState extends State<HistorialMercadoScreen> {
       case 'FICHAJE_MERCADO': return const Color(0xFF2E7D32);
       case 'VENTA':           return const Color(0xFFE65100);
       case 'FICHAJE_INICIAL': return const Color(0xFF1565C0);
+      case 'ABANDONO':        return Colors.red;
       default:                return Colors.grey;
     }
   }
@@ -77,6 +79,7 @@ class _HistorialMercadoScreenState extends State<HistorialMercadoScreen> {
       case 'FICHAJE_MERCADO': return 'Fichaje';
       case 'VENTA':           return 'Venta';
       case 'FICHAJE_INICIAL': return 'Fichaje Inicial';
+      case 'ABANDONO':        return 'Abandono';
       default:                return 'Transacción';
     }
   }
@@ -159,8 +162,9 @@ class _HistorialMercadoScreenState extends State<HistorialMercadoScreen> {
     final colorTipo = _getColorTipo(tipo);
     final fecha = DateTime.parse(transaccion['created_at']);
     final tiempoAtras = timeago.format(fecha, locale: 'es');
-    final posicion = transaccion['jugador_posicion'] as String;
-    final colorPos = _getColorPosicion(posicion);
+    final bool esAbandono = tipo == 'ABANDONO';
+    final posicion = transaccion['jugador_posicion'] as String?;
+    final colorPos = posicion != null ? _getColorPosicion(posicion) : Colors.grey;
 
     return Card(
       margin: const EdgeInsets.only(bottom: 16),
@@ -253,7 +257,11 @@ class _HistorialMercadoScreenState extends State<HistorialMercadoScreen> {
                       color: colorTipo.withOpacity(0.15),
                       borderRadius: BorderRadius.circular(10),
                     ),
-                    child: Icon(Icons.shield, color: colorTipo, size: 20),
+                    child: Icon(
+                      esAbandono ? Icons.exit_to_app : Icons.shield,
+                      color: colorTipo,
+                      size: 20,
+                    ),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
@@ -261,134 +269,141 @@ class _HistorialMercadoScreenState extends State<HistorialMercadoScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          transaccion['equipo_nombre'],
+                          esAbandono
+                              ? transaccion['descripcion'] ?? '${transaccion['usuario_nombre']} ha abandonado la liga'
+                              : transaccion['equipo_nombre'],
                           style: const TextStyle(
                               fontWeight: FontWeight.bold, fontSize: 15),
                         ),
-                        Text(
-                          transaccion['usuario_nombre'],
-                          style: const TextStyle(
-                            color: AppTheme.textSecondaryColor,
-                            fontSize: 12,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-
-              const SizedBox(height: 12),
-
-              // ── Divisor ──
-              Container(
-                height: 1,
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(colors: [
-                    Colors.transparent,
-                    AppTheme.borderColor,
-                    Colors.transparent,
-                  ]),
-                ),
-              ),
-
-              const SizedBox(height: 12),
-
-              // ── Jugador + precio ──
-              Row(
-                children: [
-                  // Avatar posición
-                  Container(
-                    width: 50,
-                    height: 50,
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                        colors: [colorPos, colorPos.withOpacity(0.7)],
-                      ),
-                      borderRadius: BorderRadius.circular(12),
-                      boxShadow: [
-                        BoxShadow(
-                          color: colorPos.withOpacity(0.4),
-                          blurRadius: 8,
-                          offset: const Offset(0, 3),
-                        ),
-                      ],
-                    ),
-                    child: Center(
-                      child: Text(
-                        posicion,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 13,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-
-                  // Nombre + nacionalidad
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          transaccion['jugador_nombre'],
-                          style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 16,
-                            color: Colors.white,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        const SizedBox(height: 3),
-                        Row(
-                          children: [
-                            const Icon(Icons.flag,
-                                size: 12, color: AppTheme.textSecondaryColor),
-                            const SizedBox(width: 4),
-                            Text(
-                              transaccion['jugador_nacionalidad'],
-                              style: const TextStyle(
-                                color: AppTheme.textSecondaryColor,
-                                fontSize: 12,
-                              ),
+                        if (!esAbandono)
+                          Text(
+                            transaccion['usuario_nombre'],
+                            style: const TextStyle(
+                              color: AppTheme.textSecondaryColor,
+                              fontSize: 12,
                             ),
-                          ],
-                        ),
+                          ),
                       ],
-                    ),
-                  ),
-
-                  // Precio
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 14, vertical: 10),
-                    decoration: BoxDecoration(
-                      color: AppTheme.secondaryColor,
-                      borderRadius: BorderRadius.circular(12),
-                      boxShadow: [
-                        BoxShadow(
-                          color: AppTheme.secondaryColor.withOpacity(0.3),
-                          blurRadius: 8,
-                          offset: const Offset(0, 3),
-                        ),
-                      ],
-                    ),
-                    child: Text(
-                      '${transaccion['precio']}M',
-                      style: const TextStyle(
-                        color: Colors.black,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 17,
-                      ),
                     ),
                   ),
                 ],
               ),
+
+              // Solo mostrar jugador + precio si no es abandono
+              if (!esAbandono) ...[
+                const SizedBox(height: 12),
+
+                // ── Divisor ──
+                Container(
+                  height: 1,
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(colors: [
+                      Colors.transparent,
+                      AppTheme.borderColor,
+                      Colors.transparent,
+                    ]),
+                  ),
+                ),
+
+                const SizedBox(height: 12),
+
+                // ── Jugador + precio ──
+                Row(
+                  children: [
+                    // Avatar posición
+                    Container(
+                      width: 50,
+                      height: 50,
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: [colorPos, colorPos.withOpacity(0.7)],
+                        ),
+                        borderRadius: BorderRadius.circular(12),
+                        boxShadow: [
+                          BoxShadow(
+                            color: colorPos.withOpacity(0.4),
+                            blurRadius: 8,
+                            offset: const Offset(0, 3),
+                          ),
+                        ],
+                      ),
+                      child: Center(
+                        child: Text(
+                          posicion ?? '?',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 13,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+
+                    // Nombre + nacionalidad
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            transaccion['jugador_nombre'] ?? 'Desconocido',
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                              color: Colors.white,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          const SizedBox(height: 3),
+                          if (transaccion['jugador_nacionalidad'] != null)
+                            Row(
+                              children: [
+                                const Icon(Icons.flag,
+                                    size: 12, color: AppTheme.textSecondaryColor),
+                                const SizedBox(width: 4),
+                                Text(
+                                  transaccion['jugador_nacionalidad'],
+                                  style: const TextStyle(
+                                    color: AppTheme.textSecondaryColor,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                              ],
+                            ),
+                        ],
+                      ),
+                    ),
+
+                    // Precio
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 14, vertical: 10),
+                      decoration: BoxDecoration(
+                        color: AppTheme.secondaryColor,
+                        borderRadius: BorderRadius.circular(12),
+                        boxShadow: [
+                          BoxShadow(
+                            color: AppTheme.secondaryColor.withOpacity(0.3),
+                            blurRadius: 8,
+                            offset: const Offset(0, 3),
+                          ),
+                        ],
+                      ),
+                      child: Text(
+                        '${transaccion['precio']}M',
+                        style: const TextStyle(
+                          color: Colors.black,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 17,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
             ],
           ),
         ),

@@ -29,6 +29,7 @@ class _ChatConversacionScreenState extends State<ChatConversacionScreen> {
   bool _cargando = true;
   bool _enviando = false;
   bool _otroUsuarioEscribiendo = false;
+  bool _otroUsuarioAbandonado = false;
   int? _currentUserId;
 
   Timer? _typingTimer;
@@ -121,9 +122,10 @@ class _ChatConversacionScreenState extends State<ChatConversacionScreen> {
     setState(() => _cargando = true);
 
     try {
-      final mensajes = await ApiService.getMensajes(widget.conversacionId);
+      final data = await ApiService.getMensajes(widget.conversacionId);
       setState(() {
-        _mensajes = mensajes;
+        _mensajes = data['mensajes'] ?? [];
+        _otroUsuarioAbandonado = data['otro_usuario_abandonado'] == true;
         _cargando = false;
       });
       _scrollToBottom();
@@ -328,6 +330,30 @@ class _ChatConversacionScreenState extends State<ChatConversacionScreen> {
       ),
       body: Column(
         children: [
+          // Banner de usuario abandonado
+          if (_otroUsuarioAbandonado)
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              color: Colors.red[50],
+              child: Row(
+                children: [
+                  Icon(Icons.info_outline, color: Colors.red[400], size: 20),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      '${widget.otroUsuario['nombre']} ya no forma parte de la liga',
+                      style: TextStyle(
+                        color: Colors.red[700],
+                        fontSize: 13,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
           // Lista de mensajes
           Expanded(
             child: _cargando
@@ -369,51 +395,65 @@ class _ChatConversacionScreenState extends State<ChatConversacionScreen> {
                       ),
           ),
 
-          // Barra de entrada de mensaje
-          Container(
-            decoration: BoxDecoration(
-              color: AppTheme.surfaceColor,
-              border: const Border(top: BorderSide(color: AppTheme.borderColor)),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.3),
-                  blurRadius: 8,
-                  offset: const Offset(0, -2),
-                ),
-              ],
-            ),
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-            child: Row(
-              children: [
-                IconButton(
-                  icon: const Icon(Icons.swap_horiz, color: Colors.blue),
-                  onPressed: _abrirCrearOferta,
-                  tooltip: 'Hacer oferta',
-                ),
-                Expanded(
-                  child: TextField(
-                    controller: _messageController,
-                    decoration: const InputDecoration(
-                      hintText: 'Escribe un mensaje...',
-                      border: InputBorder.none,
-                    ),
-                    textCapitalization: TextCapitalization.sentences,
-                    onSubmitted: (_) => _enviarMensaje(),
+          // Barra de entrada de mensaje (deshabilitada si el otro abandonó)
+          if (_otroUsuarioAbandonado)
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: AppTheme.surfaceColor,
+                border: const Border(top: BorderSide(color: AppTheme.borderColor)),
+              ),
+              child: Text(
+                'No puedes enviar mensajes a un usuario que ha abandonado la liga',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: Colors.grey[500], fontSize: 13),
+              ),
+            )
+          else
+            Container(
+              decoration: BoxDecoration(
+                color: AppTheme.surfaceColor,
+                border: const Border(top: BorderSide(color: AppTheme.borderColor)),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.3),
+                    blurRadius: 8,
+                    offset: const Offset(0, -2),
                   ),
-                ),
-                IconButton(
-                  icon: _enviando
-                      ? const SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : const Icon(Icons.send, color: Colors.blue),
-                  onPressed: _enviando ? null : _enviarMensaje,
-                ),
-              ],
+                ],
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+              child: Row(
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.swap_horiz, color: Colors.blue),
+                    onPressed: _abrirCrearOferta,
+                    tooltip: 'Hacer oferta',
+                  ),
+                  Expanded(
+                    child: TextField(
+                      controller: _messageController,
+                      decoration: const InputDecoration(
+                        hintText: 'Escribe un mensaje...',
+                        border: InputBorder.none,
+                      ),
+                      textCapitalization: TextCapitalization.sentences,
+                      onSubmitted: (_) => _enviarMensaje(),
+                    ),
+                  ),
+                  IconButton(
+                    icon: _enviando
+                        ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.send, color: Colors.blue),
+                    onPressed: _enviando ? null : _enviarMensaje,
+                  ),
+                ],
+              ),
             ),
-          ),
         ],
       ),
     );

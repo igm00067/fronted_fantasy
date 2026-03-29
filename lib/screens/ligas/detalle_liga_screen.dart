@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
@@ -8,6 +9,8 @@ import 'mercado_screen.dart';
 import 'buscar_jugadores_screen.dart';
 import 'clasificacion_liga_screen.dart';
 import 'historial_mercado_screen.dart';
+import 'inicio_liga_screen.dart';
+import 'jornada_screen.dart';
 import '../chat/chat_liga_screen.dart';
 
 class DetalleLigaScreen extends StatefulWidget {
@@ -24,25 +27,87 @@ class DetalleLigaScreen extends StatefulWidget {
 
 class _DetalleLigaScreenState extends State<DetalleLigaScreen> {
   int _selectedIndex = 0;
+  late String _estadoLiga;
+  Timer? _pollingTimer;
 
-  late final List<Widget> _screens;
+  late List<Widget> _screens;
+  late List<BottomNavigationBarItem> _navItems;
 
   @override
   void initState() {
     super.initState();
-    _screens = [
-      DashboardLigaTab(
-        ligaId: widget.liga['id'],
-        onNavigateToMercado: () => setState(() => _selectedIndex = 2),
-      ),
-      MiEquipoScreen(ligaId: widget.liga['id']),
-      MercadoScreen(
-          ligaId: widget.liga['id'],
-          competicionId: widget.liga['competicion_id']),
-      ClasificacionLigaScreen(ligaId: widget.liga['id']),
-      ChatLigaScreen(ligaId: widget.liga['id']),
-    ];
+    _estadoLiga = widget.liga['estado'] ?? 'pendiente';
+    _construirPantallas();
+    if (_estadoLiga == 'pendiente') _iniciarPolling();
   }
+
+  @override
+  void dispose() {
+    _pollingTimer?.cancel();
+    super.dispose();
+  }
+
+  void _iniciarPolling() {
+    _pollingTimer = Timer.periodic(const Duration(seconds: 4), (_) async {
+      try {
+        final liga = await ApiService.getLiga(widget.liga['id']);
+        final nuevoEstado = liga['estado'] ?? 'pendiente';
+        if (nuevoEstado != 'pendiente' && mounted) {
+          _pollingTimer?.cancel();
+          setState(() {
+            _estadoLiga = nuevoEstado;
+            _selectedIndex = 0;
+            _construirPantallas();
+          });
+        }
+      } catch (_) {}
+    });
+  }
+
+  void _construirPantallas() {
+    final ligaId = widget.liga['id'] as int;
+    final competicionId = widget.liga['competicion_id'] as int;
+    final nombre = widget.liga['nombre'] as String;
+
+    if (_estadoLiga == 'pendiente') {
+      _screens = [
+        InicioLigaScreen(ligaId: ligaId, ligaNombre: nombre),
+        MiEquipoScreen(ligaId: ligaId),
+        MercadoScreen(ligaId: ligaId, competicionId: competicionId),
+        ClasificacionLigaScreen(ligaId: ligaId),
+        ChatLigaScreen(ligaId: ligaId),
+      ];
+      _navItems = const [
+        BottomNavigationBarItem(icon: Icon(Icons.flag), label: 'Inicio'),
+        BottomNavigationBarItem(icon: Icon(Icons.shield), label: 'Mi Equipo'),
+        BottomNavigationBarItem(icon: Icon(Icons.shopping_cart), label: 'Mercado'),
+        BottomNavigationBarItem(icon: Icon(Icons.emoji_events), label: 'Clasificación'),
+        BottomNavigationBarItem(icon: Icon(Icons.chat_bubble), label: 'Chat'),
+      ];
+    } else {
+      _screens = [
+        DashboardLigaTab(
+          ligaId: ligaId,
+          onNavigateToMercado: () => setState(() => _selectedIndex = 2),
+        ),
+        JornadaScreen(ligaId: ligaId),
+        MiEquipoScreen(ligaId: ligaId),
+        MercadoScreen(ligaId: ligaId, competicionId: competicionId),
+        ClasificacionLigaScreen(ligaId: ligaId),
+        ChatLigaScreen(ligaId: ligaId),
+      ];
+      _navItems = const [
+        BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Inicio'),
+        BottomNavigationBarItem(icon: Icon(Icons.sports_soccer), label: 'Jornada'),
+        BottomNavigationBarItem(icon: Icon(Icons.shield), label: 'Mi Equipo'),
+        BottomNavigationBarItem(icon: Icon(Icons.shopping_cart), label: 'Mercado'),
+        BottomNavigationBarItem(icon: Icon(Icons.emoji_events), label: 'Clasificación'),
+        BottomNavigationBarItem(icon: Icon(Icons.chat_bubble), label: 'Chat'),
+      ];
+    }
+  }
+
+  int get _mercadoIndex => _estadoLiga == 'pendiente' ? 2 : 3;
 
   @override
   Widget build(BuildContext context) {
@@ -50,14 +115,11 @@ class _DetalleLigaScreenState extends State<DetalleLigaScreen> {
       appBar: AppBar(
         title: Text(widget.liga['nombre']),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.info_outline),
-            onPressed: _mostrarInfoLiga,
-          ),
+          IconButton(icon: const Icon(Icons.info_outline), onPressed: _mostrarInfoLiga),
         ],
       ),
       body: _screens[_selectedIndex],
-      floatingActionButton: _selectedIndex == 2
+      floatingActionButton: _selectedIndex == _mercadoIndex
           ? Opacity(
               opacity: 0.75,
               child: FloatingActionButton(
@@ -68,6 +130,7 @@ class _DetalleLigaScreenState extends State<DetalleLigaScreen> {
                   MaterialPageRoute(
                     builder: (_) => BuscarJugadoresScreen(
                       competicionId: widget.liga['competicion_id'],
+                      ligaId: widget.liga['id'],
                     ),
                   ),
                 ),
@@ -81,16 +144,7 @@ class _DetalleLigaScreenState extends State<DetalleLigaScreen> {
         type: BottomNavigationBarType.fixed,
         selectedFontSize: 12,
         unselectedFontSize: 12,
-        items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Inicio'),
-          BottomNavigationBarItem(icon: Icon(Icons.shield), label: 'Mi Equipo'),
-          BottomNavigationBarItem(
-              icon: Icon(Icons.shopping_cart), label: 'Mercado'),
-          BottomNavigationBarItem(
-              icon: Icon(Icons.emoji_events), label: 'Clasificación'),
-          BottomNavigationBarItem(
-              icon: Icon(Icons.chat_bubble), label: 'Chat'), // ← AÑADIR
-        ],
+        items: _navItems,
       ),
     );
   }
@@ -292,96 +346,7 @@ class _DashboardLigaTabState extends State<DashboardLigaTab> {
                 ),
               ),
             ),
-            const SizedBox(height: 20),
-
-            // Mi Equipo (si existe)
-            if (miEquipo != null) ...[
-              Card(
-                elevation: 3,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: Container(
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(16),
-                    gradient: const LinearGradient(
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                      colors: [
-                        AppTheme.surfaceVariantColor,
-                        AppTheme.surfaceColor,
-                      ],
-                    ),
-                  ),
-                  child: Padding(
-                    padding: const EdgeInsets.all(20),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.all(12),
-                              decoration: BoxDecoration(
-                                color: Colors.green[100],
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: Icon(
-                                Icons.shield,
-                                color: Colors.green[700],
-                                size: 28,
-                              ),
-                            ),
-                            const SizedBox(width: 16),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    'Mi Equipo',
-                                    style: Theme.of(context)
-                                        .textTheme
-                                        .titleMedium
-                                        ?.copyWith(
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                  ),
-                                  Text(
-                                    miEquipo['nombre'],
-                                    style: const TextStyle(
-                                      color: AppTheme.textSecondaryColor,
-                                      fontSize: 14,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 16,
-                                vertical: 8,
-                              ),
-                              decoration: BoxDecoration(
-                                color: Colors.blue,
-                                borderRadius: BorderRadius.circular(20),
-                              ),
-                              child: Text(
-                                '${miEquipo['puntos_totales']} pts',
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 20),
-            ],
+            const SizedBox(height: 16),
 
             // Acciones rápidas
             Text(
@@ -421,10 +386,95 @@ class _DashboardLigaTabState extends State<DashboardLigaTab> {
                 ),
               ],
             ),
+
+            const SizedBox(height: 24),
+
+            // Botón Abandonar Liga
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: () => _confirmarAbandonarLiga(context),
+                icon: const Icon(Icons.exit_to_app, color: Colors.white),
+                label: const Text(
+                  'Abandonar Liga',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                  ),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.red[700],
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+              ),
+            ),
           ],
         ),
       ),
     );
+  }
+
+  Future<void> _confirmarAbandonarLiga(BuildContext context) async {
+    final confirmar = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Abandonar Liga'),
+        content: const Text(
+          '¿Estás seguro de que quieres abandonar esta liga?\n\n'
+          'Se liberarán todos tus jugadores y perderás los partidos restantes 3-0.\n\n'
+          'Esta acción no se puede deshacer.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            child: const Text('Abandonar', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmar != true) return;
+
+    try {
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const Center(child: CircularProgressIndicator()),
+      );
+
+      await ApiService.abandonarLiga(widget.ligaId);
+
+      if (mounted) {
+        Navigator.pop(context); // cerrar loading
+        // Volver a mis ligas (pop hasta la raíz de la liga)
+        Navigator.of(context).popUntil((route) => route.isFirst);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Has abandonado la liga'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        Navigator.pop(context); // cerrar loading
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: ${e.toString().replaceAll('Exception: ', '')}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
   Widget _buildStatRow(

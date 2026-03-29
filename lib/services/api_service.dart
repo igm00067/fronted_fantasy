@@ -494,7 +494,7 @@ static Future<Map<String, dynamic>> getOCrearConversacion({
   }
 }
 
-static Future<List<dynamic>> getMensajes(int conversacionId) async {
+static Future<Map<String, dynamic>> getMensajes(int conversacionId) async {
   try {
     final authHeaders = await getAuthHeaders();
     final response = await http.get(
@@ -509,6 +509,159 @@ static Future<List<dynamic>> getMensajes(int conversacionId) async {
     }
   } catch (e) {
     throw Exception('Error de conexión: $e');
+  }
+}
+
+static Future<Map<String, dynamic>> getLiga(int ligaId) async {
+  final headers = await getAuthHeaders();
+  final response = await http.get(
+    Uri.parse('$baseUrl/ligas/$ligaId'),
+    headers: headers,
+  );
+  if (response.statusCode == 200) return jsonDecode(response.body);
+  throw Exception('Error obteniendo liga');
+}
+
+// ==================== SIMULACIÓN ====================
+
+static Future<Map<String, dynamic>> getEstadoInicio(int ligaId) async {
+  final headers = await getAuthHeaders();
+  final response = await http.get(
+    Uri.parse('$baseUrl/ligas/$ligaId/estado-inicio'),
+    headers: headers,
+  );
+  if (response.statusCode == 200) return jsonDecode(response.body);
+  throw Exception('Error obteniendo estado de inicio');
+}
+
+static Future<Map<String, dynamic>> confirmarInicio(int ligaId) async {
+  final headers = await getAuthHeaders();
+  final response = await http.post(
+    Uri.parse('$baseUrl/ligas/$ligaId/confirmar-inicio'),
+    headers: headers,
+  );
+  if (response.statusCode == 200) return jsonDecode(response.body);
+  throw Exception(jsonDecode(response.body)['error'] ?? 'Error al confirmar');
+}
+
+static Future<void> retirarConfirmacion(int ligaId) async {
+  final headers = await getAuthHeaders();
+  final response = await http.delete(
+    Uri.parse('$baseUrl/ligas/$ligaId/confirmar-inicio'),
+    headers: headers,
+  );
+  if (response.statusCode != 200) throw Exception('Error al retirar confirmación');
+}
+
+static Future<List<dynamic>> getCalendario(int ligaId) async {
+  final headers = await getAuthHeaders();
+  final response = await http.get(
+    Uri.parse('$baseUrl/ligas/$ligaId/calendario'),
+    headers: headers,
+  );
+  if (response.statusCode == 200) return jsonDecode(response.body);
+  throw Exception('Error obteniendo calendario');
+}
+
+static Future<Map<String, dynamic>?> getJornadaActual(int ligaId) async {
+  final headers = await getAuthHeaders();
+  final response = await http.get(
+    Uri.parse('$baseUrl/ligas/$ligaId/jornada-actual'),
+    headers: headers,
+  );
+  if (response.statusCode == 200) {
+    final data = jsonDecode(response.body);
+    // El backend devuelve null en {'jornada': null} o la jornada directamente
+    if (data == null) return null;
+    if (data['jornada'] == null && !data.containsKey('id')) return null;
+    return data;
+  }
+  throw Exception('Error obteniendo jornada actual');
+}
+
+static Future<Map<String, dynamic>> getPartido(int partidoId) async {
+  final headers = await getAuthHeaders();
+  final response = await http.get(
+    Uri.parse('$baseUrl/ligas/partidos/$partidoId'),
+    headers: headers,
+  );
+  if (response.statusCode == 200) return jsonDecode(response.body);
+  throw Exception('Error obteniendo partido');
+}
+
+static Future<void> enviarCambiosDescanso({
+  required int ligaId,
+  required int partidoId,
+  required List<Map<String, int>> cambios,
+}) async {
+  final headers = await getAuthHeaders();
+  final response = await http.post(
+    Uri.parse('$baseUrl/ligas/$ligaId/partidos/$partidoId/cambios-descanso'),
+    headers: headers,
+    body: jsonEncode({'cambios': cambios}),
+  );
+  if (response.statusCode != 200) {
+    throw Exception(jsonDecode(response.body)['error'] ?? 'Error al enviar cambios');
+  }
+}
+
+static Future<Map<String, dynamic>> simularJornadaManual(int ligaId) async {
+  final headers = await getAuthHeaders();
+  final response = await http.post(
+    Uri.parse('$baseUrl/ligas/$ligaId/simular-jornada'),
+    headers: headers,
+  );
+  if (response.statusCode == 200) return jsonDecode(response.body);
+  throw Exception(jsonDecode(response.body)['error'] ?? 'Error al simular');
+}
+
+// ==================== PROPIEDAD JUGADORES ====================
+
+static Future<Map<String, dynamic>> getPropiedadJugadores(int ligaId) async {
+  final authHeaders = await getAuthHeaders();
+  final response = await http.get(
+    Uri.parse('$baseUrl/ligas/$ligaId/propiedad-jugadores'),
+    headers: authHeaders,
+  );
+  if (response.statusCode == 200) return jsonDecode(response.body);
+  throw Exception('Error al obtener propiedad de jugadores');
+}
+
+// ==================== VENDER JUGADOR ====================
+
+static Future<Map<String, dynamic>> venderJugador({
+  required int ligaId,
+  required int jugadorId,
+}) async {
+  final authHeaders = await getAuthHeaders();
+  final response = await http.post(
+    Uri.parse('$baseUrl/ligas/$ligaId/mi-equipo/vender-jugador'),
+    headers: authHeaders,
+    body: jsonEncode({'jugador_id': jugadorId}),
+  );
+
+  if (response.statusCode == 200) {
+    return jsonDecode(response.body);
+  } else {
+    final error = jsonDecode(response.body);
+    throw Exception(error['error'] ?? 'Error al vender jugador');
+  }
+}
+
+// ==================== ABANDONAR LIGA ====================
+
+static Future<Map<String, dynamic>> abandonarLiga(int ligaId) async {
+  final authHeaders = await getAuthHeaders();
+  final response = await http.post(
+    Uri.parse('$baseUrl/ligas/$ligaId/abandonar'),
+    headers: authHeaders,
+  );
+
+  if (response.statusCode == 200) {
+    return jsonDecode(response.body);
+  } else {
+    final error = jsonDecode(response.body);
+    throw Exception(error['error'] ?? 'Error al abandonar liga');
   }
 }
 

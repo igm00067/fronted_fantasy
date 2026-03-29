@@ -61,12 +61,20 @@ class _MiEquipoScreenState extends State<MiEquipoScreen> with SingleTickerProvid
       final data = jsonDecode(response.body);
       setState(() {
         _plantilla = List<Map<String, dynamic>>.from(data['plantilla']);
-        
+
+        // Resetear alineación antes de cargar la nueva
+        _alineacion = {
+          'POR': null,
+          'DEF1': null, 'DEF2': null, 'DEF3': null, 'DEF4': null, 'DEF5': null,
+          'MED1': null, 'MED2': null, 'MED3': null, 'MED4': null, 'MED5': null,
+          'DEL1': null, 'DEL2': null, 'DEL3': null,
+        };
+
         // Cargar alineación guardada si existe
         if (data['equipo']['formacion'] != null) {
           _formacionSeleccionada = data['equipo']['formacion'];
         }
-        
+
         // Cargar jugadores titulares
         if (data['titulares'] != null) {
           final titulares = List<Map<String, dynamic>>.from(data['titulares']);
@@ -460,9 +468,19 @@ class _MiEquipoScreenState extends State<MiEquipoScreen> with SingleTickerProvid
                   '${jugador['precio']}M  •  Media: ${jugador['media_fifa']}',
                   style: const TextStyle(color: AppTheme.textSecondaryColor, fontSize: 12),
                 ),
-                trailing: IconButton(
-                  icon: const Icon(Icons.info_outline, color: AppTheme.secondaryColor),
-                  onPressed: () => _mostrarDetallesJugador(jugador),
+                trailing: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    IconButton(
+                      icon: Icon(Icons.sell, color: Colors.red[400], size: 22),
+                      tooltip: 'Vender por ${jugador['precio']}M',
+                      onPressed: () => _confirmarVentaJugador(jugador),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.info_outline, color: AppTheme.secondaryColor),
+                      onPressed: () => _mostrarDetallesJugador(jugador),
+                    ),
+                  ],
                 ),
               ),
             )),
@@ -470,6 +488,59 @@ class _MiEquipoScreenState extends State<MiEquipoScreen> with SingleTickerProvid
         );
       }).toList(),
     );
+  }
+
+  Future<void> _confirmarVentaJugador(Map<String, dynamic> jugador) async {
+    final confirmar = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Vender Jugador'),
+        content: Text(
+          '¿Estás seguro de que quieres vender a ${jugador['nombre']} por ${jugador['precio']}M?\n\n'
+          'El jugador será liberado al mercado y recibirás ${jugador['precio']}M.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            child: const Text('Vender', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmar != true) return;
+
+    try {
+      final resultado = await ApiService.venderJugador(
+        ligaId: widget.ligaId,
+        jugadorId: jugador['id'],
+      );
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(resultado['mensaje'] ?? 'Jugador vendido'),
+            backgroundColor: Colors.green,
+          ),
+        );
+        // Recargar equipo
+        _cargarEquipo();
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: ${e.toString().replaceAll('Exception: ', '')}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
   void _mostrarDetallesJugador(Map<String, dynamic> jugador) {

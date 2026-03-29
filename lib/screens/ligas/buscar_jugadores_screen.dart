@@ -7,8 +7,13 @@ enum OrdenJugador { nombreAsc, nombreDesc, precioAsc, precioDesc, mediaAsc, medi
 
 class BuscarJugadoresScreen extends StatefulWidget {
   final int competicionId;
+  final int? ligaId;
 
-  const BuscarJugadoresScreen({Key? key, required this.competicionId}) : super(key: key);
+  const BuscarJugadoresScreen({
+    Key? key,
+    required this.competicionId,
+    this.ligaId,
+  }) : super(key: key);
 
   @override
   State<BuscarJugadoresScreen> createState() => _BuscarJugadoresScreenState();
@@ -21,6 +26,8 @@ class _BuscarJugadoresScreenState extends State<BuscarJugadoresScreen> {
   List<dynamic> _jugadoresFiltrados = [];
   List<dynamic> _equipos = [];
   Map<int, String> _nombreEquipo = {};
+  // jugador_id → nombre equipo fantasy propietario
+  Map<int, String> _propiedadJugador = {};
 
   int? _equipoSeleccionado;
   String? _posicionSeleccionada;
@@ -47,19 +54,30 @@ class _BuscarJugadoresScreenState extends State<BuscarJugadoresScreen> {
   Future<void> _cargarDatos() async {
     setState(() { _cargando = true; _error = null; });
     try {
-      final results = await Future.wait([
+      final futures = <Future>[
         ApiService.getJugadores(),
         ApiService.getEquipos(competicionId: widget.competicionId),
-      ]);
+        if (widget.ligaId != null)
+          ApiService.getPropiedadJugadores(widget.ligaId!),
+      ];
+      final results = await Future.wait(futures);
+
       final todosJugadores = results[0] as List<dynamic>;
       _equipos = results[1] as List<dynamic>;
       _nombreEquipo = { for (final e in _equipos) e['id'] as int : e['nombre'] as String };
-      // Solo jugadores que pertenecen a equipos de esta competición
+
+      if (widget.ligaId != null && results.length > 2) {
+        final raw = results[2] as Map<String, dynamic>;
+        _propiedadJugador = raw.map((k, v) => MapEntry(int.parse(k), v as String));
+      }
+
+      // Solo jugadores de esta competición
       final equiposIds = _nombreEquipo.keys.toSet();
       _todosJugadores = todosJugadores.where((j) {
         final eId = (j['equipo_real_id'] as num?)?.toInt();
         return eId != null && equiposIds.contains(eId);
       }).toList();
+
       _aplicarFiltros();
       setState(() => _cargando = false);
     } catch (e) {
@@ -329,10 +347,16 @@ class _BuscarJugadoresScreenState extends State<BuscarJugadoresScreen> {
   }
 
   Widget _buildJugadorCard(Map<String, dynamic> jugador) {
-    final posicion = jugador['posicion'] as String? ?? '';
-    final color = _colorPosicion(posicion);
-    final media = (jugador['media_fifa'] as num?)?.toInt() ?? 0;
-    final precio = jugador['precio'];
+    final posicion  = jugador['posicion'] as String? ?? '';
+    final color     = _colorPosicion(posicion);
+    final media     = (jugador['media_fifa'] as num?)?.toInt() ?? 0;
+    final precio    = jugador['precio'];
+    final jugadorId = (jugador['id'] as num?)?.toInt();
+
+    // Estado de propiedad en la liga
+    final propietario = jugadorId != null ? _propiedadJugador[jugadorId] : null;
+    final tieneOwner  = propietario != null;
+    final mostrarOwner = widget.ligaId != null;
 
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
@@ -371,6 +395,7 @@ class _BuscarJugadoresScreenState extends State<BuscarJugadoresScreen> {
                 ),
               ),
               const SizedBox(width: 12),
+
               // Info jugador
               Expanded(
                 child: Column(
@@ -380,33 +405,48 @@ class _BuscarJugadoresScreenState extends State<BuscarJugadoresScreen> {
                       jugador['nombre'] ?? '',
                       style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
                     ),
-                    const SizedBox(height: 2),
+                    const SizedBox(height: 3),
                     Text(
                       _nombreEquipo[(jugador['equipo_real_id'] as num?)?.toInt()] ??
                           jugador['nacionalidad'] ?? '',
                       style: const TextStyle(
                           color: AppTheme.textSecondaryColor, fontSize: 12),
                     ),
+                    // Badge de propiedad
+                    if (mostrarOwner) ...[
+                      const SizedBox(height: 5),
+                      _OwnerBadge(
+                        propietario: propietario,
+                        tieneOwner: tieneOwner,
+                      ),
+                    ],
                   ],
                 ),
               ),
-              // Precio
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: AppTheme.secondaryColor.withOpacity(0.15),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Text(
-                  '${precio ?? '-'}M',
-                  style: const TextStyle(
-                    color: AppTheme.secondaryColor,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 13,
+              const SizedBox(width: 8),
+
+              // Columna derecha: precio
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: AppTheme.secondaryColor.withOpacity(0.15),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      '${precio ?? '-'}M',
+                      style: const TextStyle(
+                        color: AppTheme.secondaryColor,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 13,
+                      ),
+                    ),
                   ),
-                ),
+                ],
               ),
-              const SizedBox(width: 6),
+              const SizedBox(width: 4),
               const Icon(Icons.chevron_right, size: 16, color: AppTheme.textSecondaryColor),
             ],
           ),
@@ -460,5 +500,71 @@ class _BuscarJugadoresScreenState extends State<BuscarJugadoresScreen> {
       case 'DEL': return const Color(0xFFC62828);
       default:    return Colors.grey;
     }
+  }
+}
+
+// ── Badge de propiedad ────────────────────────────────────────────────────────
+
+class _OwnerBadge extends StatelessWidget {
+  final String? propietario;
+  final bool tieneOwner;
+
+  const _OwnerBadge({required this.propietario, required this.tieneOwner});
+
+  @override
+  Widget build(BuildContext context) {
+    if (tieneOwner) {
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+        decoration: BoxDecoration(
+          color: Colors.red.withOpacity(0.12),
+          borderRadius: BorderRadius.circular(6),
+          border: Border.all(color: Colors.red.withOpacity(0.35)),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.shield_rounded, size: 10, color: Colors.redAccent),
+            const SizedBox(width: 4),
+            Flexible(
+              child: Text(
+                propietario!,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  color: Colors.redAccent,
+                  fontSize: 10,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+      decoration: BoxDecoration(
+        color: const Color(0xFF00D084).withOpacity(0.12),
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: const Color(0xFF00D084).withOpacity(0.35)),
+      ),
+      child: const Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.check_circle_rounded, size: 10, color: Color(0xFF00D084)),
+          SizedBox(width: 4),
+          Text(
+            'Disponible',
+            style: TextStyle(
+              color: Color(0xFF00D084),
+              fontSize: 10,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
