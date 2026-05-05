@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import '../../services/api_service.dart';
+import '../../services/api/mercado_api.dart';
+import '../../services/api/ligas_api.dart';
 import '../../config/app_theme.dart';
 import '../../widgets/jugador_detalles_sheet.dart';
 import 'buscar_jugadores_screen.dart';
@@ -58,8 +59,8 @@ class _MercadoScreenState extends State<MercadoScreen> {
   Future<void> _cargarMercado() async {
     try {
       final results = await Future.wait([
-        ApiService.getMercado(widget.ligaId),
-        ApiService.getSaldoDisponible(widget.ligaId),
+        MercadoApi.getMercado(widget.ligaId),
+        LigasApi.getSaldoDisponible(widget.ligaId),
       ]);
       if (mounted) {
         final lista = results[0] as List<dynamic>;
@@ -470,10 +471,7 @@ class _MercadoScreenState extends State<MercadoScreen> {
 
   Future<void> _realizarPuja(int mercadoId, double cantidad, String nombreJugador) async {
     try {
-      await ApiService.realizarPuja(
-        mercadoId: mercadoId,
-        cantidad: cantidad,
-      );
+      await MercadoApi.realizarPuja(mercadoId: mercadoId, cantidad: cantidad);
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

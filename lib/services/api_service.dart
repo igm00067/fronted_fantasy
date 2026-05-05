@@ -1,803 +1,200 @@
-import 'dart:convert';
 import 'package:http/http.dart' as http;
-import 'package:shared_preferences/shared_preferences.dart';
+import 'api/api_client.dart';
+import 'api/auth_api.dart';
+import 'api/ligas_api.dart';
+import 'api/mercado_api.dart';
+import 'api/chat_api.dart';
+import 'api/simulacion_api.dart';
 
-
+/// Facade that delegates to domain-specific API classes.
+/// Kept for backward compatibility with existing screens.
+/// New code should import the domain classes directly (e.g. LigasApi, MercadoApi).
 class ApiService {
-  // EMULADOR Android → usa: 'http://10.0.2.2:5000/api'
-  // DISPOSITIVO FÍSICO (USB) → usa: 'http://localhost:5000/api' + ejecutar "adb reverse tcp:5000 tcp:5000"
-  //static const String baseUrl = 'http://localhost:5000/api';
-  static const String baseUrl = 'http://10.0.2.2:5000/api';
-  
-  static final Map<String, String> headers = {
-    'Content-Type': 'application/json',
-  };
+  // Exposed so legacy screens can still reference ApiService.baseUrl
+  static const String baseUrl = ApiClient.baseUrl;
 
-   // ==================== AUTH ====================
-  
-  static Future<String?> getToken() async {
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.getString('access_token');
-  }
+  // ── Token / Headers ─────────────────────────────────────────────────────────
+  static Future<String?> getToken() => ApiClient.getToken();
+  static Future<void> saveToken(String token) => ApiClient.saveToken(token);
+  static Future<void> removeToken() => ApiClient.removeToken();
+  static Future<Map<String, String>> getAuthHeaders() => ApiClient.getAuthHeaders();
 
-  static Future<void> saveToken(String token) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('access_token', token);
-  }
-
-  static Future<void> removeToken() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove('access_token');
-  }
-
-  static Future<Map<String, String>> getAuthHeaders() async {
-    final token = await getToken();
-      print('DEBUG TOKEN: $token');
-    return {
-      'Content-Type': 'application/json',
-      if (token != null) 'Authorization': 'Bearer $token',
-    };
-  }
-
-  // Registro
+  // ── Auth ─────────────────────────────────────────────────────────────────────
   static Future<Map<String, dynamic>> register({
     required String nombre,
     required String email,
     required String password,
-  }) async {
-    try {
-      final response = await http.post(
-        Uri.parse('$baseUrl/auth/register'),
-        headers: headers,
-        body: jsonEncode({
-          'nombre': nombre,
-          'email': email,
-          'password': password,
-        }),
-      );
+  }) => AuthApi.register(nombre: nombre, email: email, password: password);
 
-      if (response.statusCode == 201) {
-        final data = jsonDecode(response.body);
-        await saveToken(data['access_token']);
-        return data;
-      } else {
-        final error = jsonDecode(response.body);
-        throw Exception(error['error'] ?? 'Error al registrar');
-      }
-    } catch (e) {
-      throw Exception('Error de conexión: $e');
-    }
-  }
-
-  // Login
   static Future<Map<String, dynamic>> login({
     required String email,
     required String password,
-  }) async {
-    try {
-      final response = await http.post(
-        Uri.parse('$baseUrl/auth/login'),
-        headers: headers,
-        body: jsonEncode({
-          'email': email,
-          'password': password,
-        }),
-      );
+  }) => AuthApi.login(email: email, password: password);
 
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        await saveToken(data['access_token']);
-        return data;
-      } else {
-        final error = jsonDecode(response.body);
-        throw Exception(error['error'] ?? 'Credenciales inválidas');
-      }
-    } catch (e) {
-      throw Exception('Error de conexión: $e');
-    }
-  }
+  static Future<Map<String, dynamic>> getCurrentUser() => AuthApi.getCurrentUser();
+  static Future<void> logout() => AuthApi.logout();
 
-  // Obtener usuario actual
-  static Future<Map<String, dynamic>> getCurrentUser() async {
-    try {
-      final authHeaders = await getAuthHeaders();
-      final response = await http.get(
-        Uri.parse('$baseUrl/auth/me'),
-        headers: authHeaders,
-      );
-
-      if (response.statusCode == 200) {
-        return jsonDecode(response.body);
-      } else {
-        throw Exception('Error al obtener usuario');
-      }
-    } catch (e) {
-      throw Exception('Error de conexión: $e');
-    }
-  }
-
-  // Logout
-  static Future<void> logout() async {
-    await removeToken();
-  }
-
-  // ==================== LIGAS ====================
-  
+  // ── Ligas ────────────────────────────────────────────────────────────────────
   static Future<Map<String, dynamic>> crearLiga({
     required String nombre,
     required int competicionId,
     String? nombreEquipo,
     int maxParticipantes = 10,
     double presupuestoInicial = 100.0,
-  }) async {
-    try {
-      final authHeaders = await getAuthHeaders();
-      final response = await http.post(
-        Uri.parse('$baseUrl/ligas'),
-        headers: authHeaders,
-        body: jsonEncode({
-          'nombre': nombre,
-          'competicion_id': competicionId,
-          'nombre_equipo': nombreEquipo,
-          'max_participantes': maxParticipantes,
-          'presupuesto_inicial': presupuestoInicial,
-        }),
-      );
+  }) => LigasApi.crearLiga(
+    nombre: nombre,
+    competicionId: competicionId,
+    nombreEquipo: nombreEquipo,
+    maxParticipantes: maxParticipantes,
+    presupuestoInicial: presupuestoInicial,
+  );
 
-      if (response.statusCode == 201) {
-        return jsonDecode(response.body);
-      } else {
-        final error = jsonDecode(response.body);
-        throw Exception(error['error'] ?? 'Error al crear liga');
-      }
-    } catch (e) {
-      throw Exception('Error de conexión: $e');
-    }
-  }
-
-  static Future<List<dynamic>> getMisLigas() async {
-    try {
-      final authHeaders = await getAuthHeaders();
-      final response = await http.get(
-        Uri.parse('$baseUrl/ligas/mis-ligas'),
-        headers: authHeaders,
-      );
-
-      if (response.statusCode == 200) {
-        return jsonDecode(response.body);
-      } else {
-        throw Exception('Error al obtener ligas');
-      }
-    } catch (e) {
-      throw Exception('Error de conexión: $e');
-    }
-  }
+  static Future<List<dynamic>> getMisLigas() => LigasApi.getMisLigas();
 
   static Future<Map<String, dynamic>> unirseALiga({
     required String codigoInvitacion,
     required String nombreEquipo,
-  }) async {
-    try {
-      final authHeaders = await getAuthHeaders();
-      final response = await http.post(
-        Uri.parse('$baseUrl/ligas/unirse'),
-        headers: authHeaders,
-        body: jsonEncode({
-          'codigo_invitacion': codigoInvitacion,
-          'nombre_equipo': nombreEquipo,
-        }),
-      );
+  }) => LigasApi.unirseALiga(
+    codigoInvitacion: codigoInvitacion,
+    nombreEquipo: nombreEquipo,
+  );
 
-      if (response.statusCode == 200) {
-        return jsonDecode(response.body);
-      } else {
-        final error = jsonDecode(response.body);
-        throw Exception(error['error'] ?? 'Error al unirse a liga');
-      }
-    } catch (e) {
-      throw Exception('Error de conexión: $e');
-    }
-  }
+  static Future<Map<String, dynamic>> getLiga(int ligaId) =>
+      LigasApi.getLiga(ligaId);
 
-  // ==================== USUARIOS ====================
-  
-  static Future<List<dynamic>> getUsuarios() async {
-    try {
-      final response = await http.get(
-        Uri.parse('$baseUrl/usuarios'),
-        headers: headers,
-      );
+  static Future<Map<String, dynamic>> getClasificacion(int ligaId) =>
+      LigasApi.getClasificacion(ligaId);
 
-      if (response.statusCode == 200) {
-        return jsonDecode(response.body);
-      } else {
-        throw Exception('Error al obtener usuarios: ${response.statusCode}');
-      }
-    } catch (e) {
-      throw Exception('Error de conexión: $e');
-    }
-  }
+  static Future<List<dynamic>> getMiEquipo(int ligaId) =>
+      LigasApi.getMiEquipo(ligaId);
 
-  static Future<Map<String, dynamic>> crearUsuario({
-    required String nombre,
-    required String email,
-  }) async {
-    try {
-      final response = await http.post(
-        Uri.parse('$baseUrl/usuarios'),
-        headers: headers,
-        body: jsonEncode({
-          'nombre': nombre,
-          'email': email,
-        }),
-      );
+  static Future<double> getSaldoDisponible(int ligaId) =>
+      LigasApi.getSaldoDisponible(ligaId);
 
-      if (response.statusCode == 201) {
-        return jsonDecode(response.body);
-      } else {
-        throw Exception('Error al crear usuario: ${response.statusCode}');
-      }
-    } catch (e) {
-      throw Exception('Error de conexión: $e');
-    }
-  }
+  static Future<List<dynamic>> getEquipoUsuario(int ligaId, int usuarioId) =>
+      LigasApi.getEquipoUsuario(ligaId, usuarioId);
 
-  static Future<void> eliminarUsuario(int id) async {
-    try {
-      final response = await http.delete(
-        Uri.parse('$baseUrl/usuarios/$id'),
-        headers: headers,
-      );
+  static Future<Map<String, dynamic>> getPropiedadJugadores(int ligaId) =>
+      LigasApi.getPropiedadJugadores(ligaId);
 
-      if (response.statusCode != 200) {
-        throw Exception('Error al eliminar usuario');
-      }
-    } catch (e) {
-      throw Exception('Error de conexión: $e');
-    }
-  }
+  static Future<Map<String, dynamic>> venderJugador({
+    required int ligaId,
+    required int jugadorId,
+  }) => LigasApi.venderJugador(ligaId: ligaId, jugadorId: jugadorId);
 
-  // ==================== COMPETICIONES ====================
-  
-  static Future<List<dynamic>> getCompeticiones() async {
-    try {
-      final response = await http.get(
-        Uri.parse('$baseUrl/competiciones'),
-        headers: headers,
-      );
+  static Future<Map<String, dynamic>> abandonarLiga(int ligaId) =>
+      LigasApi.abandonarLiga(ligaId);
 
-      if (response.statusCode == 200) {
-        return jsonDecode(response.body);
-      } else {
-        throw Exception('Error al obtener competiciones: ${response.statusCode}');
-      }
-    } catch (e) {
-      throw Exception('Error de conexión: $e');
-    }
-  }
-
-  // ==================== EQUIPOS ====================
-  
-  static Future<List<dynamic>> getEquipos({int? competicionId}) async {
-    try {
-      String url = '$baseUrl/equipos';
-      if (competicionId != null) {
-        url += '?competicion_id=$competicionId';
-      }
-      
-      final response = await http.get(
-        Uri.parse(url),
-        headers: headers,
-      );
-
-      if (response.statusCode == 200) {
-        return jsonDecode(response.body);
-      } else {
-        throw Exception('Error al obtener equipos: ${response.statusCode}');
-      }
-    } catch (e) {
-      throw Exception('Error de conexión: $e');
-    }
-  }
-
-  // ==================== JUGADORES ====================
-  
+  // ── Jugadores / Equipos / Competiciones ──────────────────────────────────────
   static Future<List<dynamic>> getJugadores({
     int? equipoId,
     String? posicion,
     double? maxPrecio,
-  }) async {
-    try {
-      String url = '$baseUrl/jugadores';
-      List<String> params = [];
-      
-      if (equipoId != null) params.add('equipo_id=$equipoId');
-      if (posicion != null) params.add('posicion=$posicion');
-      if (maxPrecio != null) params.add('max_precio=$maxPrecio');
-      
-      if (params.isNotEmpty) {
-        url += '?${params.join('&')}';
-      }
-      
-      final response = await http.get(
-        Uri.parse(url),
-        headers: headers,
-      );
+  }) => LigasApi.getJugadores(equipoId: equipoId, posicion: posicion, maxPrecio: maxPrecio);
 
-      if (response.statusCode == 200) {
-        return jsonDecode(response.body);
-      } else {
-        throw Exception('Error al obtener jugadores: ${response.statusCode}');
-      }
-    } catch (e) {
-      throw Exception('Error de conexión: $e');
-    }
-  }
+  static Future<List<dynamic>> buscarJugadores(String nombre) =>
+      LigasApi.buscarJugadores(nombre);
 
-  static Future<List<dynamic>> buscarJugadores(String nombre) async {
-    try {
-      final response = await http.get(
-        Uri.parse('$baseUrl/jugadores/buscar?nombre=$nombre'),
-        headers: headers,
-      );
+  static Future<List<dynamic>> getCompeticiones() => LigasApi.getCompeticiones();
 
-      if (response.statusCode == 200) {
-        return jsonDecode(response.body);
-      } else {
-        throw Exception('Error al buscar jugadores: ${response.statusCode}');
-      }
-    } catch (e) {
-      throw Exception('Error de conexión: $e');
-    }
-  }
+  static Future<List<dynamic>> getEquipos({int? competicionId}) =>
+      LigasApi.getEquipos(competicionId: competicionId);
 
-  // ==================== CLASIFICACIÓN ====================
+  static Future<List<dynamic>> getUsuarios() => LigasApi.getUsuarios();
 
-  static Future<Map<String, dynamic>> getClasificacion(int ligaId) async {
-    try {
-      final authHeaders = await getAuthHeaders();
-      final response = await http.get(
-        Uri.parse('$baseUrl/ligas/$ligaId/clasificacion'),
-        headers: authHeaders,
-      );
+  static Future<Map<String, dynamic>> crearUsuario({
+    required String nombre,
+    required String email,
+  }) => LigasApi.crearUsuario(nombre: nombre, email: email);
 
-      if (response.statusCode == 200) {
-        return jsonDecode(response.body);
-      } else {
-        throw Exception('Error al obtener clasificación: ${response.statusCode}');
-      }
-    } catch (e) {
-      throw Exception('Error de conexión: $e');
-    }
-  }
+  static Future<void> eliminarUsuario(int id) => LigasApi.eliminarUsuario(id);
 
-  // ==================== MERCADO ====================
+  // ── Mercado ──────────────────────────────────────────────────────────────────
+  static Future<List<dynamic>> getMercado(int ligaId) =>
+      MercadoApi.getMercado(ligaId);
 
-static Future<List<dynamic>> getMercado(int ligaId) async {
-  try {
-    final authHeaders = await getAuthHeaders();
-    final response = await http.get(
-      Uri.parse('$baseUrl/mercado/$ligaId'),
-      headers: authHeaders,
-    );
+  static Future<Map<String, dynamic>> realizarPuja({
+    required int mercadoId,
+    required double cantidad,
+  }) => MercadoApi.realizarPuja(mercadoId: mercadoId, cantidad: cantidad);
 
-    if (response.statusCode == 200) {
-      return jsonDecode(response.body);
-    } else {
-      throw Exception('Error al obtener mercado: ${response.statusCode}');
-    }
-  } catch (e) {
-    throw Exception('Error de conexión: $e');
-  }
-}
+  static Future<List<dynamic>> getMisPujas(int ligaId) =>
+      MercadoApi.getMisPujas(ligaId);
 
-static Future<Map<String, dynamic>> realizarPuja({
-  required int mercadoId,
-  required double cantidad,
-}) async {
-  try {
-    final authHeaders = await getAuthHeaders();
-    final response = await http.post(
-      Uri.parse('$baseUrl/mercado/$mercadoId/pujar'),
-      headers: authHeaders,
-      body: jsonEncode({
-        'cantidad': cantidad,
-      }),
-    );
+  static Future<List<dynamic>> getHistorialMercado(int ligaId) =>
+      MercadoApi.getHistorialMercado(ligaId);
 
-    if (response.statusCode == 200) {
-      return jsonDecode(response.body);
-    } else {
-      final error = jsonDecode(response.body);
-      throw Exception(error['error'] ?? 'Error al realizar puja');
-    }
-  } catch (e) {
-    throw Exception('Error de conexión: $e');
-  }
-}
+  // ── Chat ─────────────────────────────────────────────────────────────────────
+  static Future<List<dynamic>> getConversaciones(int ligaId) =>
+      ChatApi.getConversaciones(ligaId);
 
-static Future<List<dynamic>> getMisPujas(int ligaId) async {
-  try {
-    final authHeaders = await getAuthHeaders();
-    final response = await http.get(
-      Uri.parse('$baseUrl/mercado/$ligaId/mis-pujas'),
-      headers: authHeaders,
-    );
+  static Future<Map<String, dynamic>> getOCrearConversacion({
+    required int otroUsuarioId,
+    required int ligaId,
+  }) => ChatApi.getOCrearConversacion(otroUsuarioId: otroUsuarioId, ligaId: ligaId);
 
-    if (response.statusCode == 200) {
-      return jsonDecode(response.body);
-    } else {
-      throw Exception('Error al obtener pujas: ${response.statusCode}');
-    }
-  } catch (e) {
-    throw Exception('Error de conexión: $e');
-  }
-}
-// ==================== HISTORIAL ====================
+  static Future<Map<String, dynamic>> getMensajes(int conversacionId) =>
+      ChatApi.getMensajes(conversacionId);
 
-static Future<List<dynamic>> getHistorialMercado(int ligaId) async {
-  try {
-    final authHeaders = await getAuthHeaders();
-    final response = await http.get(
-      Uri.parse('$baseUrl/mercado/$ligaId/historial'),
-      headers: authHeaders,
-    );
-
-    if (response.statusCode == 200) {
-      return jsonDecode(response.body);
-    } else {
-      throw Exception('Error al obtener historial: ${response.statusCode}');
-    }
-  } catch (e) {
-    throw Exception('Error de conexión: $e');
-  }
-}
-
-// ==================== CHAT ====================
-
-static Future<List<dynamic>> getConversaciones(int ligaId) async {
-  try {
-    final authHeaders = await getAuthHeaders();
-    final response = await http.get(
-      Uri.parse('$baseUrl/chat/conversaciones/$ligaId'),
-      headers: authHeaders,
-    );
-
-    if (response.statusCode == 200) {
-      return jsonDecode(response.body);
-    } else {
-      throw Exception('Error al obtener conversaciones: ${response.statusCode}');
-    }
-  } catch (e) {
-    throw Exception('Error de conexión: $e');
-  }
-}
-
-static Future<Map<String, dynamic>> getOCrearConversacion({
-  required int otroUsuarioId,
-  required int ligaId,
-}) async {
-  try {
-    final authHeaders = await getAuthHeaders();
-    final response = await http.get(
-      Uri.parse('$baseUrl/chat/conversacion/$otroUsuarioId/$ligaId'),
-      headers: authHeaders,
-    );
-
-    if (response.statusCode == 200) {
-      return jsonDecode(response.body);
-    } else {
-      throw Exception('Error al obtener conversación: ${response.statusCode}');
-    }
-  } catch (e) {
-    throw Exception('Error de conexión: $e');
-  }
-}
-
-static Future<Map<String, dynamic>> getMensajes(int conversacionId) async {
-  try {
-    final authHeaders = await getAuthHeaders();
-    final response = await http.get(
-      Uri.parse('$baseUrl/chat/mensajes/$conversacionId'),
-      headers: authHeaders,
-    );
-
-    if (response.statusCode == 200) {
-      return jsonDecode(response.body);
-    } else {
-      throw Exception('Error al obtener mensajes: ${response.statusCode}');
-    }
-  } catch (e) {
-    throw Exception('Error de conexión: $e');
-  }
-}
-
-static Future<Map<String, dynamic>> getLiga(int ligaId) async {
-  final headers = await getAuthHeaders();
-  final response = await http.get(
-    Uri.parse('$baseUrl/ligas/$ligaId'),
-    headers: headers,
-  );
-  if (response.statusCode == 200) return jsonDecode(response.body);
-  throw Exception('Error obteniendo liga');
-}
-
-// ==================== SIMULACIÓN ====================
-
-static Future<Map<String, dynamic>> getEstadoInicio(int ligaId) async {
-  final headers = await getAuthHeaders();
-  final response = await http.get(
-    Uri.parse('$baseUrl/ligas/$ligaId/estado-inicio'),
-    headers: headers,
-  );
-  if (response.statusCode == 200) return jsonDecode(response.body);
-  throw Exception('Error obteniendo estado de inicio');
-}
-
-static Future<Map<String, dynamic>> confirmarInicio(int ligaId) async {
-  final headers = await getAuthHeaders();
-  final response = await http.post(
-    Uri.parse('$baseUrl/ligas/$ligaId/confirmar-inicio'),
-    headers: headers,
-  );
-  if (response.statusCode == 200) return jsonDecode(response.body);
-  throw Exception(jsonDecode(response.body)['error'] ?? 'Error al confirmar');
-}
-
-static Future<void> retirarConfirmacion(int ligaId) async {
-  final headers = await getAuthHeaders();
-  final response = await http.delete(
-    Uri.parse('$baseUrl/ligas/$ligaId/confirmar-inicio'),
-    headers: headers,
-  );
-  if (response.statusCode != 200) throw Exception('Error al retirar confirmación');
-}
-
-static Future<List<dynamic>> getCalendario(int ligaId) async {
-  final headers = await getAuthHeaders();
-  final response = await http.get(
-    Uri.parse('$baseUrl/ligas/$ligaId/calendario'),
-    headers: headers,
-  );
-  if (response.statusCode == 200) return jsonDecode(response.body);
-  throw Exception('Error obteniendo calendario');
-}
-
-static Future<Map<String, dynamic>?> getJornadaActual(int ligaId) async {
-  final headers = await getAuthHeaders();
-  final response = await http.get(
-    Uri.parse('$baseUrl/ligas/$ligaId/jornada-actual'),
-    headers: headers,
-  );
-  if (response.statusCode == 200) {
-    final data = jsonDecode(response.body);
-    // El backend devuelve null en {'jornada': null} o la jornada directamente
-    if (data == null) return null;
-    if (data['jornada'] == null && !data.containsKey('id')) return null;
-    return data;
-  }
-  throw Exception('Error obteniendo jornada actual');
-}
-
-static Future<Map<String, dynamic>> getPartido(int partidoId) async {
-  final headers = await getAuthHeaders();
-  final response = await http.get(
-    Uri.parse('$baseUrl/ligas/partidos/$partidoId'),
-    headers: headers,
-  );
-  if (response.statusCode == 200) return jsonDecode(response.body);
-  throw Exception('Error obteniendo partido');
-}
-
-static Future<void> enviarCambiosDescanso({
-  required int ligaId,
-  required int partidoId,
-  required List<Map<String, int>> cambios,
-}) async {
-  final headers = await getAuthHeaders();
-  final response = await http.post(
-    Uri.parse('$baseUrl/ligas/$ligaId/partidos/$partidoId/cambios-descanso'),
-    headers: headers,
-    body: jsonEncode({'cambios': cambios}),
-  );
-  if (response.statusCode != 200) {
-    throw Exception(jsonDecode(response.body)['error'] ?? 'Error al enviar cambios');
-  }
-}
-
-static Future<Map<String, dynamic>> simularJornadaManual(int ligaId) async {
-  final headers = await getAuthHeaders();
-  final response = await http.post(
-    Uri.parse('$baseUrl/ligas/$ligaId/simular-jornada'),
-    headers: headers,
-  );
-  if (response.statusCode == 200) return jsonDecode(response.body);
-  throw Exception(jsonDecode(response.body)['error'] ?? 'Error al simular');
-}
-
-// ==================== PROPIEDAD JUGADORES ====================
-
-static Future<Map<String, dynamic>> getPropiedadJugadores(int ligaId) async {
-  final authHeaders = await getAuthHeaders();
-  final response = await http.get(
-    Uri.parse('$baseUrl/ligas/$ligaId/propiedad-jugadores'),
-    headers: authHeaders,
-  );
-  if (response.statusCode == 200) return jsonDecode(response.body);
-  throw Exception('Error al obtener propiedad de jugadores');
-}
-
-// ==================== VENDER JUGADOR ====================
-
-static Future<Map<String, dynamic>> venderJugador({
-  required int ligaId,
-  required int jugadorId,
-}) async {
-  final authHeaders = await getAuthHeaders();
-  final response = await http.post(
-    Uri.parse('$baseUrl/ligas/$ligaId/mi-equipo/vender-jugador'),
-    headers: authHeaders,
-    body: jsonEncode({'jugador_id': jugadorId}),
+  static Future<Map<String, dynamic>> crearOferta({
+    required int conversacionId,
+    int? jugadorOfrecidoId,
+    double dineroOfrecido = 0,
+    int? jugadorSolicitadoId,
+    double dineroSolicitado = 0,
+    String mensaje = '',
+  }) => ChatApi.crearOferta(
+    conversacionId: conversacionId,
+    jugadorOfrecidoId: jugadorOfrecidoId,
+    dineroOfrecido: dineroOfrecido,
+    jugadorSolicitadoId: jugadorSolicitadoId,
+    dineroSolicitado: dineroSolicitado,
+    mensaje: mensaje,
   );
 
-  if (response.statusCode == 200) {
-    return jsonDecode(response.body);
-  } else {
-    final error = jsonDecode(response.body);
-    throw Exception(error['error'] ?? 'Error al vender jugador');
-  }
-}
+  static Future<Map<String, dynamic>> responderOferta({
+    required int ofertaId,
+    required String accion,
+  }) => ChatApi.responderOferta(ofertaId: ofertaId, accion: accion);
 
-// ==================== ABANDONAR LIGA ====================
+  // ── Simulación ───────────────────────────────────────────────────────────────
+  static Future<Map<String, dynamic>> getEstadoInicio(int ligaId) =>
+      SimulacionApi.getEstadoInicio(ligaId);
 
-static Future<Map<String, dynamic>> abandonarLiga(int ligaId) async {
-  final authHeaders = await getAuthHeaders();
-  final response = await http.post(
-    Uri.parse('$baseUrl/ligas/$ligaId/abandonar'),
-    headers: authHeaders,
+  static Future<Map<String, dynamic>> confirmarInicio(int ligaId) =>
+      SimulacionApi.confirmarInicio(ligaId);
+
+  static Future<void> retirarConfirmacion(int ligaId) =>
+      SimulacionApi.retirarConfirmacion(ligaId);
+
+  static Future<List<dynamic>> getCalendario(int ligaId) =>
+      SimulacionApi.getCalendario(ligaId);
+
+  static Future<Map<String, dynamic>?> getJornadaActual(int ligaId) =>
+      SimulacionApi.getJornadaActual(ligaId);
+
+  static Future<Map<String, dynamic>> getPartido(int partidoId) =>
+      SimulacionApi.getPartido(partidoId);
+
+  static Future<void> enviarCambiosDescanso({
+    required int ligaId,
+    required int partidoId,
+    required List<Map<String, int>> cambios,
+  }) => SimulacionApi.enviarCambiosDescanso(
+    ligaId: ligaId,
+    partidoId: partidoId,
+    cambios: cambios,
   );
 
-  if (response.statusCode == 200) {
-    return jsonDecode(response.body);
-  } else {
-    final error = jsonDecode(response.body);
-    throw Exception(error['error'] ?? 'Error al abandonar liga');
-  }
-}
+  static Future<Map<String, dynamic>> simularJornadaManual(int ligaId) =>
+      SimulacionApi.simularJornadaManual(ligaId);
 
-// ==================== OFERTAS ====================
-
-static Future<List<dynamic>> getMiEquipo(int ligaId) async {
-  final prefs = await SharedPreferences.getInstance();
-  final token = prefs.getString('access_token');
-
-  final response = await http.get(
-    Uri.parse('$baseUrl/ligas/$ligaId/mi-equipo'),
-    headers: {
-      'Authorization': 'Bearer $token',
-      'Content-Type': 'application/json',
-    },
-  );
-
-  if (response.statusCode == 200) {
-    final data = json.decode(response.body);
-    return data['plantilla'];
-  } else {
-    throw Exception('Error obteniendo mi equipo');
-  }
-}
-
-static Future<double> getSaldoDisponible(int ligaId) async {
-  final prefs = await SharedPreferences.getInstance();
-  final token = prefs.getString('access_token');
-
-  final response = await http.get(
-    Uri.parse('$baseUrl/ligas/$ligaId/mi-equipo'),
-    headers: {
-      'Authorization': 'Bearer $token',
-      'Content-Type': 'application/json',
-    },
-  );
-
-  if (response.statusCode == 200) {
-    final data = json.decode(response.body);
-    return (data['equipo']['saldo_disponible'] as num).toDouble();
-  } else {
-    throw Exception('Error obteniendo saldo');
-  }
-}
-
-static Future<List<dynamic>> getEquipoUsuario(int ligaId, int usuarioId) async {
-  final prefs = await SharedPreferences.getInstance();
-  final token = prefs.getString('access_token');
-
-  final response = await http.get(
-    Uri.parse('$baseUrl/ligas/$ligaId/equipo/$usuarioId'),
-    headers: {
-      'Authorization': 'Bearer $token',
-      'Content-Type': 'application/json',
-    },
-  );
-
-  if (response.statusCode == 200) {
-    final data = json.decode(response.body);
-    return data['plantilla'];
-  } else {
-    throw Exception('Error obteniendo equipo del usuario');
-  }
-}
-
-static Future<Map<String, dynamic>> crearOferta({
-  required int conversacionId,
-  int? jugadorOfrecidoId,
-  double dineroOfrecido = 0,
-  int? jugadorSolicitadoId,
-  double dineroSolicitado = 0,
-  String mensaje = '',
-}) async {
-  final prefs = await SharedPreferences.getInstance();
-  final token = prefs.getString('access_token');
-
-  final response = await http.post(
-    Uri.parse('$baseUrl/chat/oferta/crear'),
-    headers: {
-      'Authorization': 'Bearer $token',
-      'Content-Type': 'application/json',
-    },
-    body: json.encode({
-      'conversacion_id': conversacionId,
-      'jugador_ofrecido_id': jugadorOfrecidoId,
-      'dinero_ofrecido': dineroOfrecido,
-      'jugador_solicitado_id': jugadorSolicitadoId,
-      'dinero_solicitado': dineroSolicitado,
-      'mensaje': mensaje,
-    }),
-  );
-
-  if (response.statusCode == 201) {
-    return json.decode(response.body);
-  } else {
-    final error = json.decode(response.body);
-    throw Exception(error['error'] ?? 'Error creando oferta');
-  }
-}
-
-static Future<Map<String, dynamic>> responderOferta({
-  required int ofertaId,
-  required String accion, // 'ACEPTAR' o 'RECHAZAR'
-}) async {
-  final prefs = await SharedPreferences.getInstance();
-  final token = prefs.getString('access_token');
-
-  final response = await http.post(
-    Uri.parse('$baseUrl/chat/oferta/$ofertaId/responder'),
-    headers: {
-      'Authorization': 'Bearer $token',
-      'Content-Type': 'application/json',
-    },
-    body: json.encode({
-      'accion': accion,
-    }),
-  );
-
-  if (response.statusCode == 200) {
-    return json.decode(response.body);
-  } else {
-    final error = json.decode(response.body);
-    throw Exception(error['error'] ?? 'Error respondiendo oferta');
-  }
-}
-
-
-
-
-  // Método de prueba
+  // ── Test ─────────────────────────────────────────────────────────────────────
   static Future<bool> testConexion() async {
     try {
-      // EMULADOR: 'http://10.0.2.2:5000/'  |  DISPOSITIVO FÍSICO: 'http://192.168.194.109:5000/'
       final response = await http.get(Uri.parse('http://10.0.2.2:5000/'));
       return response.statusCode == 200;
-    } catch (e) {
+    } catch (_) {
       return false;
     }
   }

@@ -17,8 +17,11 @@ class _JornadaScreenState extends State<JornadaScreen>
   late TabController _tabController;
   Map<String, dynamic>? _jornadaActual;
   List<dynamic> _calendario = [];
-  bool _cargando = true;
+  bool _primeraCarga = true;
   Timer? _timer;
+
+  final ScrollController _scrollJornada = ScrollController();
+  final ScrollController _scrollCalendario = ScrollController();
 
   @override
   void initState() {
@@ -32,23 +35,26 @@ class _JornadaScreenState extends State<JornadaScreen>
   void dispose() {
     _timer?.cancel();
     _tabController.dispose();
+    _scrollJornada.dispose();
+    _scrollCalendario.dispose();
     super.dispose();
   }
 
   Future<void> _cargar() async {
-    setState(() => _cargando = true);
     try {
       final results = await Future.wait([
         ApiService.getJornadaActual(widget.ligaId),
         ApiService.getCalendario(widget.ligaId),
       ]);
-      setState(() {
-        _jornadaActual = results[0] as Map<String, dynamic>?;
-        _calendario = results[1] as List<dynamic>;
-        _cargando = false;
-      });
+      if (mounted) {
+        setState(() {
+          _jornadaActual = results[0] as Map<String, dynamic>?;
+          _calendario = results[1] as List<dynamic>;
+          _primeraCarga = false;
+        });
+      }
     } catch (_) {
-      setState(() => _cargando = false);
+      if (mounted) setState(() => _primeraCarga = false);
     }
   }
 
@@ -71,7 +77,7 @@ class _JornadaScreenState extends State<JornadaScreen>
           ),
         ),
         Expanded(
-          child: _cargando
+          child: _primeraCarga
               ? const Center(child: CircularProgressIndicator())
               : TabBarView(
                   controller: _tabController,
@@ -99,6 +105,7 @@ class _JornadaScreenState extends State<JornadaScreen>
     return RefreshIndicator(
       onRefresh: _cargar,
       child: ListView(
+        controller: _scrollJornada,
         padding: const EdgeInsets.all(16),
         children: [
           _buildJornadaHeader('Jornada $numero', estado),
@@ -120,6 +127,7 @@ class _JornadaScreenState extends State<JornadaScreen>
     return RefreshIndicator(
       onRefresh: _cargar,
       child: ListView.builder(
+        controller: _scrollCalendario,
         padding: const EdgeInsets.symmetric(vertical: 8),
         itemCount: _calendario.length,
         itemBuilder: (_, i) {

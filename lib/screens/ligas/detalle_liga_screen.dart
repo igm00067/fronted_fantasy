@@ -1,7 +1,5 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
-import 'dart:convert';
 import '../../services/api_service.dart';
 import '../../config/app_theme.dart';
 import 'mi_equipo_screen.dart';
@@ -218,22 +216,11 @@ class _DashboardLigaTabState extends State<DashboardLigaTab> {
 
   Future<void> _cargarDatosLiga() async {
     setState(() => _cargando = true);
-
     try {
-      final authHeaders = await ApiService.getAuthHeaders();
-      final response = await http.get(
-        Uri.parse('${ApiService.baseUrl}/ligas/${widget.ligaId}'),
-        headers: authHeaders,
-      );
-
-      if (response.statusCode == 200) {
-        setState(() {
-          _liga = jsonDecode(response.body);
-          _cargando = false;
-        });
-      }
-    } catch (e) {
-      setState(() => _cargando = false);
+      final data = await ApiService.getLiga(widget.ligaId);
+      if (mounted) setState(() { _liga = data; _cargando = false; });
+    } catch (_) {
+      if (mounted) setState(() => _cargando = false);
     }
   }
 

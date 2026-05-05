@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
 import '../../services/api_service.dart';
+import '../../services/api/ligas_api.dart';
 import '../../config/app_theme.dart';
 import '../../widgets/jugador_detalles_sheet.dart';
-import 'package:http/http.dart' as http;
-import 'dart:convert';
 
 class MiEquipoScreen extends StatefulWidget {
   final int ligaId;
@@ -48,34 +47,20 @@ class _MiEquipoScreenState extends State<MiEquipoScreen> with SingleTickerProvid
   }
 
   Future<void> _cargarEquipo() async {
-  setState(() => _cargando = true);
-  
-  try {
-    final authHeaders = await ApiService.getAuthHeaders();
-    final response = await http.get(
-      Uri.parse('${ApiService.baseUrl}/ligas/${widget.ligaId}/mi-equipo'),
-      headers: authHeaders,
-    );
-
-    if (response.statusCode == 200) {
-      final data = jsonDecode(response.body);
+    setState(() => _cargando = true);
+    try {
+      final data = await LigasApi.getMiEquipoCompleto(widget.ligaId);
       setState(() {
         _plantilla = List<Map<String, dynamic>>.from(data['plantilla']);
-
-        // Resetear alineación antes de cargar la nueva
         _alineacion = {
           'POR': null,
           'DEF1': null, 'DEF2': null, 'DEF3': null, 'DEF4': null, 'DEF5': null,
           'MED1': null, 'MED2': null, 'MED3': null, 'MED4': null, 'MED5': null,
           'DEL1': null, 'DEL2': null, 'DEL3': null,
         };
-
-        // Cargar alineación guardada si existe
         if (data['equipo']['formacion'] != null) {
           _formacionSeleccionada = data['equipo']['formacion'];
         }
-
-        // Cargar jugadores titulares
         if (data['titulares'] != null) {
           final titulares = List<Map<String, dynamic>>.from(data['titulares']);
           for (var titular in titulares) {
@@ -88,21 +73,17 @@ class _MiEquipoScreenState extends State<MiEquipoScreen> with SingleTickerProvid
             }
           }
         }
-        
         _cargando = false;
       });
-    } else {
-      throw Exception('Error al cargar equipo');
-    }
-  } catch (e) {
-    setState(() => _cargando = false);
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
-      );
+    } catch (e) {
+      setState(() => _cargando = false);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+        );
+      }
     }
   }
-}
 
   List<String> get _posicionesActivas {
     switch (_formacionSeleccionada) {
@@ -318,50 +299,92 @@ class _MiEquipoScreenState extends State<MiEquipoScreen> with SingleTickerProvid
   }
 
   Widget _buildJugadorCard(Map<String, dynamic>? jugador, String posicion) {
-    final posicionTipo = posicion.startsWith('POR') ? 'POR' 
+    final posicionTipo = posicion.startsWith('POR') ? 'POR'
         : posicion.startsWith('DEF') ? 'DEF'
         : posicion.startsWith('MED') ? 'MED'
         : 'DEL';
-    
+
     final posColor = jugador != null ? _getColorPosicion(jugador['posicion']) : AppTheme.surfaceVariantColor;
+    final bool lesionado = jugador?['lesionado'] == true;
+    final bool suspendido = jugador?['suspendido'] == true;
 
     return Column(
+      mainAxisSize: MainAxisSize.min,
       children: [
-        Container(
-          width: 68,
-          height: 68,
-          decoration: BoxDecoration(
-            color: posColor,
-            shape: BoxShape.circle,
-            border: Border.all(
-              color: jugador != null ? Colors.white : AppTheme.secondaryColor,
-              width: jugador != null ? 2.5 : 2,
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.5),
-                blurRadius: 8,
-                offset: const Offset(0, 3),
-              ),
-            ],
-          ),
-          child: jugador != null
-              ? Center(
-                  child: Text(
-                    jugador['nombre'].split(' ').last.substring(0, 3).toUpperCase(),
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 13,
-                      shadows: [Shadow(color: Colors.black45, blurRadius: 4)],
-                    ),
-                  ),
-                )
-              : const Center(
-                  child: Icon(Icons.add, color: AppTheme.secondaryColor, size: 28),
+        Stack(
+          clipBehavior: Clip.none,
+          children: [
+            Container(
+              width: 68,
+              height: 68,
+              decoration: BoxDecoration(
+                color: (lesionado || suspendido) ? posColor.withOpacity(0.55) : posColor,
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: lesionado
+                      ? Colors.red
+                      : suspendido
+                          ? Colors.red.shade900
+                          : (jugador != null ? Colors.white : AppTheme.secondaryColor),
+                  width: jugador != null ? 2.5 : 2,
                 ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.5),
+                    blurRadius: 8,
+                    offset: const Offset(0, 3),
+                  ),
+                ],
+              ),
+              child: jugador != null
+                  ? Center(
+                      child: Text(
+                        jugador['nombre'].split(' ').last.substring(0, 3).toUpperCase(),
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 13,
+                          shadows: [Shadow(color: Colors.black45, blurRadius: 4)],
+                        ),
+                      ),
+                    )
+                  : const Center(
+                      child: Icon(Icons.add, color: AppTheme.secondaryColor, size: 28),
+                    ),
+            ),
+            // Badge de lesión (cruz roja)
+            if (lesionado)
+              Positioned(
+                bottom: -2,
+                right: -2,
+                child: Container(
+                  width: 22,
+                  height: 22,
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    shape: BoxShape.circle,
+                    border: Border.all(color: Colors.red, width: 1.5),
+                  ),
+                  child: const Icon(Icons.add, color: Colors.red, size: 14),
+                ),
+              )
+            // Badge de sanción (tarjeta roja)
+            else if (suspendido)
+              Positioned(
+                bottom: -2,
+                right: -2,
+                child: Container(
+                  width: 12,
+                  height: 16,
+                  decoration: BoxDecoration(
+                    color: Colors.red,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+          ],
         ),
-        const SizedBox(height: 4),
+        const SizedBox(height: 5),
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
           decoration: BoxDecoration(
@@ -449,41 +472,110 @@ class _MiEquipoScreenState extends State<MiEquipoScreen> with SingleTickerProvid
                 ],
               ),
             ),
-            ...entry.value.map<Widget>((jugador) => Card(
-              margin: const EdgeInsets.only(bottom: 8),
-              child: ListTile(
-                contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
-                leading: CircleAvatar(
-                  backgroundColor: _getColorPosicion(jugador['posicion']),
-                  child: Text(
-                    jugador['posicion'],
-                    style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 11),
+            ...entry.value.map<Widget>((jugador) {
+              final bool lesionado = jugador['lesionado'] == true;
+              final bool suspendido = jugador['suspendido'] == true;
+              return Card(
+                margin: const EdgeInsets.only(bottom: 8),
+                child: ListTile(
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+                  leading: Stack(
+                    clipBehavior: Clip.none,
+                    children: [
+                      CircleAvatar(
+                        backgroundColor: lesionado || suspendido
+                            ? _getColorPosicion(jugador['posicion']).withOpacity(0.5)
+                            : _getColorPosicion(jugador['posicion']),
+                        child: Text(
+                          jugador['posicion'],
+                          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 11),
+                        ),
+                      ),
+                      if (lesionado)
+                        Positioned(
+                          bottom: -2, right: -2,
+                          child: Container(
+                            width: 16, height: 16,
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              shape: BoxShape.circle,
+                              border: Border.all(color: Colors.red, width: 1.5),
+                            ),
+                            child: const Icon(Icons.add, color: Colors.red, size: 10),
+                          ),
+                        )
+                      else if (suspendido)
+                        Positioned(
+                          bottom: -2, right: -2,
+                          child: Container(
+                            width: 10, height: 13,
+                            decoration: BoxDecoration(
+                              color: Colors.red,
+                              borderRadius: BorderRadius.circular(1.5),
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                  title: Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          jugador['nombre'],
+                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                        ),
+                      ),
+                      if (lesionado)
+                        Container(
+                          margin: const EdgeInsets.only(left: 6),
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: Colors.red.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: Colors.red.withOpacity(0.4)),
+                          ),
+                          child: Text(
+                            'Lesionado ${jugador['jornadas_lesion'] > 0 ? "(${jugador['jornadas_lesion']}J)" : ""}',
+                            style: const TextStyle(color: Colors.red, fontSize: 10, fontWeight: FontWeight.w600),
+                          ),
+                        )
+                      else if (suspendido)
+                        Container(
+                          margin: const EdgeInsets.only(left: 6),
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: Colors.red.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: Colors.red.withOpacity(0.4)),
+                          ),
+                          child: const Text(
+                            'Sancionado',
+                            style: TextStyle(color: Colors.red, fontSize: 10, fontWeight: FontWeight.w600),
+                          ),
+                        ),
+                    ],
+                  ),
+                  subtitle: Text(
+                    '${jugador['precio']}M  •  Media: ${jugador['media_fifa']}',
+                    style: const TextStyle(color: AppTheme.textSecondaryColor, fontSize: 12),
+                  ),
+                  trailing: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      IconButton(
+                        icon: Icon(Icons.sell, color: Colors.red[400], size: 22),
+                        tooltip: 'Vender por ${jugador['precio']}M',
+                        onPressed: () => _confirmarVentaJugador(jugador),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.info_outline, color: AppTheme.secondaryColor),
+                        onPressed: () => _mostrarDetallesJugador(jugador),
+                      ),
+                    ],
                   ),
                 ),
-                title: Text(
-                  jugador['nombre'],
-                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-                ),
-                subtitle: Text(
-                  '${jugador['precio']}M  •  Media: ${jugador['media_fifa']}',
-                  style: const TextStyle(color: AppTheme.textSecondaryColor, fontSize: 12),
-                ),
-                trailing: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    IconButton(
-                      icon: Icon(Icons.sell, color: Colors.red[400], size: 22),
-                      tooltip: 'Vender por ${jugador['precio']}M',
-                      onPressed: () => _confirmarVentaJugador(jugador),
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.info_outline, color: AppTheme.secondaryColor),
-                      onPressed: () => _mostrarDetallesJugador(jugador),
-                    ),
-                  ],
-                ),
-              ),
-            )),
+              );
+            }),
           ],
         );
       }).toList(),
@@ -667,40 +759,27 @@ class _MiEquipoScreenState extends State<MiEquipoScreen> with SingleTickerProvid
 }
 
   Future<void> _guardarAlineacion() async {
-  try {
-    // Validar que tenga todos los titulares
-    final titularesCompletos = _posicionesActivas.every((pos) => _alineacion[pos] != null);
-    
-    if (!titularesCompletos) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Completa toda la alineación antes de guardar'),
-          backgroundColor: Colors.orange,
-        ),
-      );
-      return;
-    }
+    try {
+      final titularesCompletos = _posicionesActivas.every((pos) => _alineacion[pos] != null);
+      if (!titularesCompletos) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Completa toda la alineación antes de guardar'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+        return;
+      }
 
-    // Preparar datos para enviar
-    final alineacionData = {
-      'formacion': _formacionSeleccionada,
-      'titulares': _posicionesActivas.map((pos) {
-        final jugador = _alineacion[pos];
-        return {
+      await LigasApi.guardarAlineacion(
+        ligaId: widget.ligaId,
+        formacion: _formacionSeleccionada,
+        titulares: _posicionesActivas.map((pos) => {
           'posicion_en_campo': pos,
-          'jugador_id': jugador['id'],
-        };
-      }).toList(),
-    };
+          'jugador_id': _alineacion[pos]!['id'] as int,
+        }).toList(),
+      );
 
-    final authHeaders = await ApiService.getAuthHeaders();
-    final response = await http.post(
-      Uri.parse('${ApiService.baseUrl}/ligas/${widget.ligaId}/mi-equipo/alineacion'),
-      headers: authHeaders,
-      body: jsonEncode(alineacionData),
-    );
-
-    if (response.statusCode == 200) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -709,20 +788,14 @@ class _MiEquipoScreenState extends State<MiEquipoScreen> with SingleTickerProvid
           ),
         );
       }
-    } else {
-      throw Exception('Error al guardar alineación');
-    }
-  } catch (e) {
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+        );
+      }
     }
   }
-}
 }
 
 class CampoPainter extends CustomPainter {

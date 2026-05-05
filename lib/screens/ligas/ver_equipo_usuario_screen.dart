@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
-import '../../services/api_service.dart';
+import '../../services/api/ligas_api.dart';
 import '../../config/app_theme.dart';
 import '../../widgets/jugador_detalles_sheet.dart';
-import 'package:http/http.dart' as http;
-import 'dart:convert';
 
 class VerEquipoUsuarioScreen extends StatefulWidget {
   final int ligaId;
@@ -47,48 +45,31 @@ class _VerEquipoUsuarioScreenState extends State<VerEquipoUsuarioScreen>
 
   Future<void> _cargarEquipo() async {
     setState(() => _cargando = true);
-
     try {
-      final authHeaders = await ApiService.getAuthHeaders();
-      final response = await http.get(
-        Uri.parse(
-            '${ApiService.baseUrl}/ligas/${widget.ligaId}/equipo/${widget.usuarioId}'),
-        headers: authHeaders,
-      );
-
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        setState(() {
-          _plantilla = List<Map<String, dynamic>>.from(data['plantilla']);
-
-          // Cargar formación
-          if (data['equipo']['formacion'] != null) {
-            _formacionSeleccionada = data['equipo']['formacion'];
-          }
-
-          // Cargar jugadores titulares
-          _alineacion = {};
-          if (data['titulares'] != null) {
-            final titulares = List<Map<String, dynamic>>.from(data['titulares']);
-            for (var titular in titulares) {
-              final jugador = _plantilla.firstWhere(
-                (j) => j['id'] == titular['jugador_id'],
-                orElse: () => {},
-              );
-              if (jugador.isNotEmpty) {
-                _alineacion[titular['posicion_en_campo']] = jugador;
-              }
+      final data = await LigasApi.getEquipoUsuarioCompleto(widget.ligaId, widget.usuarioId);
+      setState(() {
+        _plantilla = List<Map<String, dynamic>>.from(data['plantilla']);
+        if (data['equipo']['formacion'] != null) {
+          _formacionSeleccionada = data['equipo']['formacion'];
+        }
+        _alineacion = {};
+        if (data['titulares'] != null) {
+          final titulares = List<Map<String, dynamic>>.from(data['titulares']);
+          for (var titular in titulares) {
+            final jugador = _plantilla.firstWhere(
+              (j) => j['id'] == titular['jugador_id'],
+              orElse: () => {},
+            );
+            if (jugador.isNotEmpty) {
+              _alineacion[titular['posicion_en_campo']] = jugador;
             }
           }
-
-          _cargando = false;
-        });
-      } else {
-        throw Exception('Error al cargar equipo');
-      }
+        }
+        _cargando = false;
+      });
     } catch (e) {
-      setState(() => _cargando = false);
       if (mounted) {
+        setState(() => _cargando = false);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
         );

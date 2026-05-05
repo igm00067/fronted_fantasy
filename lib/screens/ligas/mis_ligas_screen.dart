@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../../providers/ligas_provider.dart';
+import '../../models/liga.dart';
 import '../../services/api_service.dart';
 import '../../config/app_theme.dart';
+import '../../widgets/common/liga_badge.dart';
+import '../../widgets/common/info_chip.dart';
 import 'detalle_liga_screen.dart';
-import 'package:http/http.dart' as http;
-import 'dart:convert';
 
 class MisLigasScreen extends StatefulWidget {
   const MisLigasScreen({Key? key}) : super(key: key);
@@ -13,49 +16,29 @@ class MisLigasScreen extends StatefulWidget {
 }
 
 class _MisLigasScreenState extends State<MisLigasScreen> {
-  List<dynamic> _ligas = [];
-  bool _cargando = true;
-  String? _error;
-
   @override
   void initState() {
     super.initState();
-    _cargarLigas();
+    // Carga inicial diferida para tener el contexto disponible
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<LigasProvider>().cargarMisLigas();
+    });
   }
 
-  Future<void> _cargarLigas() async {
-    setState(() { _cargando = true; _error = null; });
-    try {
-      final ligas = await ApiService.getMisLigas();
-      setState(() { _ligas = ligas; _cargando = false; });
-    } catch (e) {
-      setState(() { _error = e.toString(); _cargando = false; });
-    }
-  }
-
-  Future<void> _navegarADetalleLiga(Map<String, dynamic> liga) async {
+  Future<void> _navegarADetalleLiga(Liga liga) async {
     showDialog(
       context: context,
       barrierDismissible: false,
       builder: (_) => const Center(child: CircularProgressIndicator()),
     );
     try {
-      final authHeaders = await ApiService.getAuthHeaders();
-      final response = await http.get(
-        Uri.parse('${ApiService.baseUrl}/ligas/${liga['id']}'),
-        headers: authHeaders,
-      );
-      if (mounted) Navigator.pop(context);
-      if (response.statusCode == 200) {
-        final ligaCompleta = jsonDecode(response.body);
-        if (mounted) {
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (_) => DetalleLigaScreen(liga: ligaCompleta)),
-          ).then((_) => _cargarLigas());
-        }
-      } else {
-        throw Exception('Error al cargar liga');
+      final ligaCompleta = await ApiService.getLiga(liga.id);
+      if (mounted) {
+        Navigator.pop(context);
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => DetalleLigaScreen(liga: ligaCompleta)),
+        ).then((_) => context.read<LigasProvider>().cargarMisLigas());
       }
     } catch (e) {
       if (mounted) {
@@ -69,31 +52,35 @@ class _MisLigasScreenState extends State<MisLigasScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppTheme.backgroundColor,
-      appBar: AppBar(
-        title: const Text('Mis Ligas'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh_rounded),
-            onPressed: _cargarLigas,
+    return Consumer<LigasProvider>(
+      builder: (context, provider, _) {
+        return Scaffold(
+          backgroundColor: AppTheme.backgroundColor,
+          appBar: AppBar(
+            title: const Text('Mis Ligas'),
+            actions: [
+              IconButton(
+                icon: const Icon(Icons.refresh_rounded),
+                onPressed: provider.cargarMisLigas,
+              ),
+            ],
           ),
-        ],
-      ),
-      body: _cargando
-          ? const Center(child: CircularProgressIndicator())
-          : _error != null
-              ? _buildError()
-              : Column(
-                  children: [
-                    _buildHeader(),
-                    Expanded(child: _buildBody()),
-                  ],
-                ),
+          body: provider.isLoading
+              ? const Center(child: CircularProgressIndicator())
+              : provider.error != null
+                  ? _buildError(provider)
+                  : Column(
+                      children: [
+                        _buildHeader(provider.ligas),
+                        Expanded(child: _buildBody(provider)),
+                      ],
+                    ),
+        );
+      },
     );
   }
 
-  Widget _buildHeader() {
+  Widget _buildHeader(List<Liga> ligas) {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
@@ -129,9 +116,9 @@ class _MisLigasScreenState extends State<MisLigasScreen> {
               ),
               const SizedBox(height: 2),
               Text(
-                _ligas.isEmpty
+                ligas.isEmpty
                     ? 'Sin ligas activas'
-                    : '${_ligas.length} liga${_ligas.length == 1 ? '' : 's'} activa${_ligas.length == 1 ? '' : 's'}',
+                    : '${ligas.length} liga${ligas.length == 1 ? '' : 's'} activa${ligas.length == 1 ? '' : 's'}',
                 style: const TextStyle(
                   color: AppTheme.secondaryColor,
                   fontSize: 13,
@@ -145,16 +132,16 @@ class _MisLigasScreenState extends State<MisLigasScreen> {
     );
   }
 
-  Widget _buildBody() {
-    if (_ligas.isEmpty) return _buildEmpty();
+  Widget _buildBody(LigasProvider provider) {
+    if (provider.ligas.isEmpty) return _buildEmpty();
     return RefreshIndicator(
-      onRefresh: _cargarLigas,
+      onRefresh: provider.cargarMisLigas,
       child: ListView.builder(
         padding: const EdgeInsets.fromLTRB(16, 20, 16, 24),
-        itemCount: _ligas.length,
+        itemCount: provider.ligas.length,
         itemBuilder: (context, index) => _LigaCard(
-          liga: _ligas[index],
-          onTap: () => _navegarADetalleLiga(_ligas[index]),
+          liga: provider.ligas[index],
+          onTap: () => _navegarADetalleLiga(provider.ligas[index]),
         ),
       ),
     );
@@ -206,7 +193,7 @@ class _MisLigasScreenState extends State<MisLigasScreen> {
     );
   }
 
-  Widget _buildError() {
+  Widget _buildError(LigasProvider provider) {
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(40),
@@ -220,13 +207,13 @@ class _MisLigasScreenState extends State<MisLigasScreen> {
                 textAlign: TextAlign.center),
             const SizedBox(height: 8),
             Text(
-              _error!.replaceAll('Exception: ', ''),
+              provider.error!,
               textAlign: TextAlign.center,
               style: const TextStyle(color: AppTheme.textSecondaryColor),
             ),
             const SizedBox(height: 24),
             ElevatedButton.icon(
-              onPressed: _cargarLigas,
+              onPressed: provider.cargarMisLigas,
               icon: const Icon(Icons.refresh),
               label: const Text('Reintentar'),
             ),
@@ -240,7 +227,7 @@ class _MisLigasScreenState extends State<MisLigasScreen> {
 // ── Tarjeta de liga ───────────────────────────────────────────────────────────
 
 class _LigaCard extends StatelessWidget {
-  final Map<String, dynamic> liga;
+  final Liga liga;
   final VoidCallback onTap;
 
   const _LigaCard({required this.liga, required this.onTap});
@@ -255,45 +242,35 @@ class _LigaCard extends StatelessWidget {
     Color(0xFFE65100),
   ];
 
-  Color get _avatarColor {
-    final nombre = liga['nombre'] as String? ?? 'L';
-    return _avatarColors[nombre.codeUnitAt(0) % _avatarColors.length];
-  }
+  Color get _avatarColor =>
+      _avatarColors[liga.nombre.codeUnitAt(0) % _avatarColors.length];
 
   Color get _estadoColor {
-    switch (liga['estado'] ?? 'pendiente') {
-      case 'en_curso':   return const Color(0xFF00D084);
-      case 'finalizada': return Colors.grey;
-      default:           return AppTheme.secondaryColor;
-    }
+    if (liga.estaEnCurso) return const Color(0xFF00D084);
+    if (liga.estaFinalizada) return Colors.grey;
+    return AppTheme.secondaryColor;
   }
 
   String get _estadoLabel {
-    switch (liga['estado'] ?? 'pendiente') {
-      case 'en_curso':   return 'En curso';
-      case 'finalizada': return 'Finalizada';
-      default:           return 'Pendiente';
-    }
+    if (liga.estaEnCurso) return 'En curso';
+    if (liga.estaFinalizada) return 'Finalizada';
+    return 'Pendiente';
   }
 
   IconData get _estadoIcon {
-    switch (liga['estado'] ?? 'pendiente') {
-      case 'en_curso':   return Icons.play_circle_filled_rounded;
-      case 'finalizada': return Icons.flag_rounded;
-      default:           return Icons.hourglass_empty_rounded;
-    }
+    if (liga.estaEnCurso) return Icons.play_circle_filled_rounded;
+    if (liga.estaFinalizada) return Icons.flag_rounded;
+    return Icons.hourglass_empty_rounded;
   }
 
   @override
   Widget build(BuildContext context) {
-    final nombre     = liga['nombre'] as String? ?? 'Liga';
-    final numPart    = (liga['num_participantes'] ?? 0) as int;
-    final maxPart    = (liga['max_participantes'] ?? 10) as int;
-    final presupuesto = liga['presupuesto_inicial'] ?? 100;
-    final codigo     = liga['codigo_invitacion'] ?? '';
-    final progreso   = maxPart > 0 ? (numPart / maxPart).clamp(0.0, 1.0) : 0.0;
-    final ac         = _avatarColor;
-    final ec         = _estadoColor;
+    final numPart  = liga.numParticipantes;
+    final maxPart  = liga.maxParticipantes;
+    final progreso = maxPart > 0 ? (numPart / maxPart).clamp(0.0, 1.0) : 0.0;
+    final nombre = liga.nombre;
+    final ac     = _avatarColor;
+    final ec     = _estadoColor;
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 16),
@@ -374,7 +351,7 @@ class _LigaCard extends StatelessWidget {
                             ),
                           ),
                           const SizedBox(height: 6),
-                          _Badge(icon: _estadoIcon, label: _estadoLabel, color: ec),
+                          LigaBadge(icon: _estadoIcon, label: _estadoLabel, color: ec),
                         ],
                       ),
                     ),
@@ -431,15 +408,15 @@ class _LigaCard extends StatelessWidget {
                     // Chips: presupuesto + código
                     Row(
                       children: [
-                        _Chip(
+                        InfoChip(
                           icon: Icons.account_balance_wallet_outlined,
-                          label: '${presupuesto}M',
+                          label: '${liga.presupuestoInicial.toInt()}M',
                           color: AppTheme.secondaryColor,
                         ),
                         const SizedBox(width: 8),
-                        _Chip(
+                        InfoChip(
                           icon: Icons.vpn_key_outlined,
-                          label: codigo,
+                          label: liga.codigoInvitacion,
                           color: AppTheme.textSecondaryColor,
                         ),
                       ],
@@ -455,60 +432,3 @@ class _LigaCard extends StatelessWidget {
   }
 }
 
-class _Badge extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final Color color;
-  const _Badge({required this.icon, required this.label, required this.color});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.12),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: color.withOpacity(0.35)),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 11, color: color),
-          const SizedBox(width: 4),
-          Text(label,
-              style: TextStyle(
-                  color: color, fontSize: 11, fontWeight: FontWeight.bold)),
-        ],
-      ),
-    );
-  }
-}
-
-class _Chip extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final Color color;
-  const _Chip({required this.icon, required this.label, required this.color});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.07),
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: color.withOpacity(0.2)),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 13, color: color),
-          const SizedBox(width: 5),
-          Text(label,
-              style: TextStyle(
-                  color: color, fontSize: 12, fontWeight: FontWeight.w600)),
-        ],
-      ),
-    );
-  }
-}

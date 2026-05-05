@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'providers/auth_provider.dart';
+import 'providers/ligas_provider.dart';
+import 'providers/mercado_provider.dart';
 import 'screens/auth/login_screen.dart';
 import 'screens/home_screen.dart';
 import 'config/app_theme.dart';
@@ -20,8 +22,12 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ChangeNotifierProvider(
-      create: (_) => AuthProvider(),
+    return MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => AuthProvider()),
+        ChangeNotifierProvider(create: (_) => LigasProvider()),
+        ChangeNotifierProvider(create: (_) => MercadoProvider()),
+      ],
       child: MaterialApp(
         title: 'Fantasy Football Manager',
         theme: AppTheme.darkTheme,

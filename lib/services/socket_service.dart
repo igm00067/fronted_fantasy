@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:socket_io_client/socket_io_client.dart' as IO;
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -25,7 +26,7 @@ class SocketService {
   
   static Future<void> connect() async {
     if (socket != null && socket!.connected) {
-      print('⚠️ Socket ya está conectado');
+      debugPrint('⚠️ Socket ya está conectado');
       return;
     }
     
@@ -37,11 +38,11 @@ class SocketService {
       final token = prefs.getString('access_token');
       
       if (token == null) {
-        print('❌ No hay token de autenticación');
+        debugPrint('❌ No hay token de autenticación');
         return;
       }
       
-      print('🔌 Conectando a WebSocket...');
+      debugPrint('🔌 Conectando a WebSocket...');
       
       socket = IO.io(
         'http://10.0.2.2:5000',
@@ -54,47 +55,47 @@ class SocketService {
       
       // Event listeners
       socket!.onConnect((_) {
-        print('✅ Conectado a WebSocket');
+        debugPrint('✅ Conectado a WebSocket');
         _isConnected = true;
         onConnected?.call();
       });
       
       socket!.onDisconnect((_) {
-        print('❌ Desconectado de WebSocket');
+        debugPrint('❌ Desconectado de WebSocket');
         _isConnected = false;
         onDisconnected?.call();
       });
       
       socket!.on('connected', (data) {
-        print('✅ Confirmación del servidor: $data');
+        debugPrint('✅ Confirmación del servidor: $data');
       });
       
       socket!.on('new_message', (data) {
-        print('💬 Nuevo mensaje recibido: $data');
+        debugPrint('💬 Nuevo mensaje recibido: $data');
         onNewMessage?.call(Map<String, dynamic>.from(data));
       });
       
       socket!.on('message_sent', (data) {
-        print('✅ Mensaje enviado confirmado: $data');
+        debugPrint('✅ Mensaje enviado confirmado: $data');
         onMessageSent?.call(Map<String, dynamic>.from(data));
       });
       
       socket!.on('user_typing', (data) {
-        print('⌨️ Usuario escribiendo: $data');
+        debugPrint('⌨️ Usuario escribiendo: $data');
         onUserTyping?.call(Map<String, dynamic>.from(data));
       });
       
       socket!.on('error', (data) {
-        print('❌ Error del socket: $data');
+        debugPrint('❌ Error del socket: $data');
       });
       
       socket!.onConnectError((data) {
-        print('❌ Error de conexión: $data');
+        debugPrint('❌ Error de conexión: $data');
         _isConnected = false;
       });
       
     } catch (e) {
-      print('❌ Error conectando socket: $e');
+      debugPrint('❌ Error conectando socket: $e');
       _isConnected = false;
     }
   }
@@ -106,7 +107,7 @@ class SocketService {
       socket = null;
       _isConnected = false;
       clearListeners();  // ← AÑADIDO: Limpiar al desconectar
-      print('👋 Socket desconectado');
+      debugPrint('👋 Socket desconectado');
     }
   }
   
@@ -115,7 +116,7 @@ class SocketService {
     required String contenido,
   }) async {
     if (socket == null || !socket!.connected) {
-      print('❌ Socket no conectado');
+      debugPrint('❌ Socket no conectado');
       await connect();
       await Future.delayed(const Duration(seconds: 1));
     }
@@ -130,9 +131,9 @@ class SocketService {
         'token': token,
       });
       
-      print('📤 Mensaje enviado via socket');
+      debugPrint('📤 Mensaje enviado via socket');
     } catch (e) {
-      print('❌ Error enviando mensaje: $e');
+      debugPrint('❌ Error enviando mensaje: $e');
     }
   }
   
@@ -152,7 +153,7 @@ class SocketService {
         'token': token,
       });
     } catch (e) {
-      print('❌ Error enviando typing: $e');
+      debugPrint('❌ Error enviando typing: $e');
     }
   }
   
@@ -168,9 +169,9 @@ class SocketService {
         'token': token,
       });
       
-      print('✅ Unido a conversación $conversacionId');
+      debugPrint('✅ Unido a conversación $conversacionId');
     } catch (e) {
-      print('❌ Error uniéndose a conversación: $e');
+      debugPrint('❌ Error uniéndose a conversación: $e');
     }
   }
   
@@ -181,6 +182,6 @@ class SocketService {
       'conversacion_id': conversacionId,
     });
     
-    print('👋 Salió de conversación $conversacionId');
+    debugPrint('👋 Salió de conversación $conversacionId');
   }
 }
