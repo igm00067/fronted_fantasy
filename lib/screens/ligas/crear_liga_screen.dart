@@ -1,3 +1,21 @@
+// ─────────────────────────────────────────────────────────────────────────────
+// screens/ligas/crear_liga_screen.dart — Formulario para crear una liga nueva
+//
+// Campos del formulario:
+//   - Nombre de la liga (obligatorio)
+//   - Nombre del equipo del creador (opcional, se genera automáticamente si vacío)
+//   - Competición (dropdown cargado desde GET /api/competiciones)
+//   - Número máximo de participantes (slider o selector, default 10)
+//   - Presupuesto inicial (slider, default 100M)
+//
+// Al confirmar → POST /api/ligas con los datos del formulario
+// El backend asigna al creador como primer participante y genera:
+//   - Su EquipoFantasy con el nombre elegido
+//   - El codigo_invitacion de 6 caracteres aleatorio
+//
+// Tras crear la liga, vuelve a HomeScreen con Navigator.pop().
+// La lista de ligas se recarga en MisLigasScreen al volver.
+// ─────────────────────────────────────────────────────────────────────────────
 import 'package:flutter/material.dart';
 import '../../services/api_service.dart';
 

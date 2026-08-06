@@ -1,3 +1,18 @@
+// ─────────────────────────────────────────────────────────────────────────────
+// screens/ligas/unirse_liga_screen.dart — Formulario para unirse a una liga
+//
+// Campos del formulario:
+//   - Código de invitación de 6 caracteres (campo obligatorio, en mayúsculas)
+//   - Nombre del equipo del nuevo participante (obligatorio)
+//
+// Al confirmar → POST /api/ligas/unirse con { codigo_invitacion, nombre_equipo }
+// El backend valida:
+//   - El código de invitación existe y la liga no está llena
+//   - El usuario no está ya en esa liga
+// Si todo es correcto, crea EquipoFantasy y ParticipanteLiga para el usuario.
+//
+// Tras unirse, vuelve a HomeScreen con Navigator.pop().
+// ─────────────────────────────────────────────────────────────────────────────
 import 'package:flutter/material.dart';
 import '../../services/api_service.dart';
 

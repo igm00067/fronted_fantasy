@@ -1,8 +1,27 @@
+// ─────────────────────────────────────────────────────────────────────────────
+// widgets/jugador_detalles_sheet.dart — Bottom sheet de detalles de un jugador
+//
+// Función global que abre un DraggableScrollableSheet con información completa:
+//   - Cabecera con gradiente por posición (POR=verde, DEF=azul, MED=naranja, DEL=rojo)
+//   - Media FIFA del jugador (calculada por el backend con pesos por posición)
+//   - Atributos FIFA: velocidad, tiro, pase, regate, defensa, físico (hexágono visual)
+//   - Estadísticas de partido: medias de goles, asistencias, tarjetas, puntos
+//   - Precio en el mercado
+//
+// Se llama desde múltiples pantallas:
+//   MercadoScreen, MiEquipoScreen, BuscarJugadoresScreen, VerEquipoUsuarioScreen
+//
+// El jugador se pasa como Map<String, dynamic> (no como objeto Jugador)
+// porque en muchos contextos viene directamente del JSON del backend sin parsear.
+//
+// Color por posición (también usado en _colorPosicion):
+//   POR → verde   DEF → azul   MED → naranja/ámbar   DEL → rojo
+// ─────────────────────────────────────────────────────────────────────────────
 import 'package:flutter/material.dart';
 import '../config/app_theme.dart';
 
-/// Muestra el bottom sheet de detalles de un jugador.
-/// Funciona desde cualquier pantalla.
+/// Abre el bottom sheet de detalles completos de un jugador.
+/// Funciona desde cualquier pantalla que tenga un BuildContext disponible.
 void mostrarDetallesJugador(
     BuildContext context, Map<String, dynamic> jugador) {
   final posicion = jugador['posicion'] as String? ?? '';

@@ -1,6 +1,18 @@
+// ─────────────────────────────────────────────────────────────────────────────
+// widgets/common/liga_badge.dart — Pastilla de estado de liga
+//
+// Widget reutilizable para mostrar el estado actual de una liga en forma de badge.
+// Se usa en _LigaCard de MisLigasScreen.
+//
+// Ejemplo de uso:
+//   LigaBadge(icon: Icons.play_circle, label: 'En curso', color: Color(0xFF00D084))
+//   LigaBadge(icon: Icons.hourglass_empty, label: 'Pendiente', color: AppTheme.secondaryColor)
+//   LigaBadge(icon: Icons.flag, label: 'Finalizada', color: Colors.grey)
+// ─────────────────────────────────────────────────────────────────────────────
 import 'package:flutter/material.dart';
 
 /// Pequeña pastilla con icono + texto para mostrar el estado de una liga.
+/// El fondo y el borde usan el color con opacidad reducida para discreción visual.
 class LigaBadge extends StatelessWidget {
   final IconData icon;
   final String label;

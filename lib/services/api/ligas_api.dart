@@ -1,10 +1,30 @@
+// ─────────────────────────────────────────────────────────────────────────────
+// services/api/ligas_api.dart — Llamadas HTTP a los blueprints ligas, jugadores,
+//                               equipos, competiciones y usuarios del backend
+//
+// Agrupa en una sola clase estática todos los endpoints relacionados con la
+// gestión de ligas y datos auxiliares. Organizado en secciones:
+//
+//   ── Ligas ──────── CRUD de ligas, unirse, clasificación, abandono, expulsión
+//   ── Equipo ──────── mi equipo, alineación, ver plantilla rival, vender jugador
+//   ── Jugadores/Equipos/Competiciones ── catálogos y búsqueda
+//   ── Usuarios ────── lista y gestión de usuarios (admin)
+//
+// Patrón de errores: todas las funciones lanzan Exception con el mensaje del
+// servidor si el código HTTP no es el esperado.
+// ─────────────────────────────────────────────────────────────────────────────
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'api_client.dart';
 
+/// Clase estática de acceso a la API de ligas, equipos y catálogos.
 class LigasApi {
   // ── Ligas ──────────────────────────────────────────────────────────────────
 
+  /// POST /api/ligas
+  /// Crea una nueva liga fantasy. El creador se convierte automáticamente en
+  /// el primer participante y se le asigna un equipo con nombre opcional.
+  /// El backend genera el codigo_invitacion de 6 caracteres aleatorio.
   static Future<Map<String, dynamic>> crearLiga({
     required String nombre,
     required int competicionId,
@@ -33,6 +53,9 @@ class LigasApi {
     }
   }
 
+  /// GET /api/ligas/mis-ligas
+  /// Devuelve todas las ligas en las que participa el usuario autenticado.
+  /// Usada en LigasProvider.cargarMisLigas() → mis_ligas_screen.dart.
   static Future<List<dynamic>> getMisLigas() async {
     try {
       final headers = await ApiClient.getAuthHeaders();
@@ -47,6 +70,10 @@ class LigasApi {
     }
   }
 
+  /// POST /api/ligas/unirse
+  /// Une al usuario a una liga usando el código de invitación.
+  /// El backend crea un EquipoFantasy para el usuario y un ParticipanteLiga.
+  /// Falla si la liga ya alcanzó max_participantes o si el usuario ya está.
   static Future<Map<String, dynamic>> unirseALiga({
     required String codigoInvitacion,
     required String nombreEquipo,
@@ -69,6 +96,8 @@ class LigasApi {
     }
   }
 
+  /// GET /api/ligas/<ligaId>
+  /// Obtiene los detalles completos de una liga: nombre, estado, participantes, etc.
   static Future<Map<String, dynamic>> getLiga(int ligaId) async {
     final headers = await ApiClient.getAuthHeaders();
     final response = await http.get(
@@ -79,6 +108,9 @@ class LigasApi {
     throw Exception('Error obteniendo liga');
   }
 
+  /// GET /api/ligas/<ligaId>/clasificacion
+  /// Devuelve la tabla de clasificación de la liga con stats de cada equipo:
+  /// partidos jugados, victorias, empates, derrotas, goles, puntos fantasy.
   static Future<Map<String, dynamic>> getClasificacion(int ligaId) async {
     try {
       final headers = await ApiClient.getAuthHeaders();
@@ -95,7 +127,10 @@ class LigasApi {
 
   // ── Equipo ─────────────────────────────────────────────────────────────────
 
-  /// Llamada base compartida por getMiEquipo y getSaldoDisponible.
+  /// GET /api/ligas/<ligaId>/mi-equipo — llamada base privada.
+  /// Devuelve { equipo: {...}, plantilla: [...] }.
+  /// Compartida por getMiEquipo() y getSaldoDisponible() para evitar duplicar peticiones
+  /// cuando ya tenemos ambos datos disponibles en el mismo endpoint.
   static Future<Map<String, dynamic>> _getMiEquipoData(int ligaId) async {
     final headers = await ApiClient.getAuthHeaders();
     final response = await http.get(
@@ -106,19 +141,26 @@ class LigasApi {
     throw Exception('Error obteniendo mi equipo');
   }
 
+  /// Devuelve el mapa completo { equipo, plantilla }. Usado en mi_equipo_screen.dart.
   static Future<Map<String, dynamic>> getMiEquipoCompleto(int ligaId) =>
       _getMiEquipoData(ligaId);
 
+  /// Devuelve solo la lista de jugadores en plantilla. Usado donde no se necesita equipo.
   static Future<List<dynamic>> getMiEquipo(int ligaId) async {
     final data = await _getMiEquipoData(ligaId);
     return data['plantilla'];
   }
 
+  /// Devuelve solo el saldo disponible del equipo. Usado en MercadoProvider.cargar().
   static Future<double> getSaldoDisponible(int ligaId) async {
     final data = await _getMiEquipoData(ligaId);
     return (data['equipo']['saldo_disponible'] as num).toDouble();
   }
 
+  /// POST /api/ligas/<ligaId>/mi-equipo/alineacion
+  /// Guarda la alineación del usuario: qué jugadores son titulares y la formación.
+  /// El backend actualiza es_titular y posicion_en_campo en PlantillaEquipo.
+  /// También se aplican los cambios de descanso en esta llamada si el partido está activo.
   static Future<void> guardarAlineacion({
     required int ligaId,
     required String formacion,
@@ -136,6 +178,9 @@ class LigasApi {
     }
   }
 
+  /// GET /api/ligas/<ligaId>/equipo/<usuarioId>
+  /// Devuelve el equipo completo de otro usuario (para ver la plantilla rival).
+  /// Igual que _getMiEquipoData pero para cualquier usuarioId, no solo el autenticado.
   static Future<Map<String, dynamic>> getEquipoUsuarioCompleto(int ligaId, int usuarioId) async {
     final headers = await ApiClient.getAuthHeaders();
     final response = await http.get(
@@ -146,6 +191,7 @@ class LigasApi {
     throw Exception('Error obteniendo equipo del usuario');
   }
 
+  /// Igual que getEquipoUsuarioCompleto pero devuelve solo la lista de plantilla.
   static Future<List<dynamic>> getEquipoUsuario(int ligaId, int usuarioId) async {
     final headers = await ApiClient.getAuthHeaders();
     final response = await http.get(
@@ -158,6 +204,10 @@ class LigasApi {
     throw Exception('Error obteniendo equipo del usuario');
   }
 
+  /// GET /api/ligas/<ligaId>/propiedad-jugadores
+  /// Devuelve un mapa { jugador_id → usuario_id } con todos los jugadores
+  /// que ya tienen dueño en la liga. Se usa en crear_oferta_screen.dart para
+  /// filtrar qué jugadores puede solicitar el usuario al rival.
   static Future<Map<String, dynamic>> getPropiedadJugadores(int ligaId) async {
     final headers = await ApiClient.getAuthHeaders();
     final response = await http.get(
@@ -168,6 +218,10 @@ class LigasApi {
     throw Exception('Error al obtener propiedad de jugadores');
   }
 
+  /// POST /api/ligas/<ligaId>/mi-equipo/vender-jugador
+  /// Vende un jugador de vuelta al mercado libre.
+  /// El backend elimina al jugador de PlantillaEquipo y suma su precio al saldo.
+  /// Se registra en HistorialTransaccion con tipo VENTA.
   static Future<Map<String, dynamic>> venderJugador({
     required int ligaId,
     required int jugadorId,
@@ -183,6 +237,9 @@ class LigasApi {
     throw Exception(error['error'] ?? 'Error al vender jugador');
   }
 
+  /// POST /api/ligas/<ligaId>/abandonar
+  /// El usuario sale de la liga. Si era el creador, el rol pasa al siguiente
+  /// participante por fecha_union. Si era el último, la liga se elimina.
   static Future<Map<String, dynamic>> abandonarLiga(int ligaId) async {
     final headers = await ApiClient.getAuthHeaders();
     final response = await http.post(
@@ -194,8 +251,25 @@ class LigasApi {
     throw Exception(error['error'] ?? 'Error al abandonar liga');
   }
 
+  /// POST /api/ligas/<ligaId>/expulsar/<usuarioId>
+  /// Solo puede llamarlo el creador de la liga. Expulsa al participante
+  /// y marca su registro como abandonado en HistorialTransaccion (tipo EXPULSION).
+  static Future<Map<String, dynamic>> expulsarParticipante(int ligaId, int usuarioId) async {
+    final headers = await ApiClient.getAuthHeaders();
+    final response = await http.post(
+      Uri.parse('${ApiClient.baseUrl}/ligas/$ligaId/expulsar/$usuarioId'),
+      headers: headers,
+    );
+    if (response.statusCode == 200) return jsonDecode(response.body);
+    final error = jsonDecode(response.body);
+    throw Exception(error['error'] ?? 'Error al expulsar participante');
+  }
+
   // ── Jugadores / Equipos / Competiciones ────────────────────────────────────
 
+  /// GET /api/jugadores[?equipo_id=&posicion=&max_precio=]
+  /// Devuelve el catálogo de jugadores con filtros opcionales.
+  /// Usado en buscar_jugadores_screen.dart para explorar el catálogo completo.
   static Future<List<dynamic>> getJugadores({
     int? equipoId,
     String? posicion,
@@ -217,6 +291,9 @@ class LigasApi {
     }
   }
 
+  /// GET /api/jugadores/buscar?nombre=<nombre>
+  /// Búsqueda por nombre (LIKE %nombre%). Usada en el buscador de jugadores
+  /// con debounce para no saturar el backend con cada tecla.
   static Future<List<dynamic>> buscarJugadores(String nombre) async {
     try {
       final response = await http.get(
@@ -230,6 +307,9 @@ class LigasApi {
     }
   }
 
+  /// GET /api/competiciones
+  /// Devuelve todas las competiciones disponibles (ej. La Liga, Champions...).
+  /// Usada en crear_liga_screen.dart para que el usuario elija la competición.
   static Future<List<dynamic>> getCompeticiones() async {
     try {
       final response = await http.get(
@@ -243,6 +323,9 @@ class LigasApi {
     }
   }
 
+  /// GET /api/equipos[?competicion_id=<id>]
+  /// Devuelve equipos reales de fútbol, opcionalmente filtrados por competición.
+  /// Usada en buscar_jugadores_screen.dart para filtrar jugadores por equipo.
   static Future<List<dynamic>> getEquipos({int? competicionId}) async {
     try {
       final url = '${ApiClient.baseUrl}/equipos'
@@ -256,7 +339,9 @@ class LigasApi {
   }
 
   // ── Usuarios ───────────────────────────────────────────────────────────────
+  // Endpoints de gestión de usuarios (principalmente para uso interno/admin).
 
+  /// GET /api/usuarios — devuelve todos los usuarios registrados.
   static Future<List<dynamic>> getUsuarios() async {
     try {
       final response = await http.get(

@@ -1,3 +1,18 @@
+// ─────────────────────────────────────────────────────────────────────────────
+// screens/ligas/jornada_screen.dart — Vista de jornadas y calendario
+//
+// Pantalla con dos pestañas (TabBar):
+//   "Jornada Actual" → muestra los partidos de la jornada en curso
+//   "Calendario"     → lista todas las jornadas pasadas y futuras
+//
+// Actualización cada 5 segundos para mostrar marcadores en tiempo real.
+// Al tocar un partido → navega a PartidoScreen con el partido seleccionado.
+//
+// Muestra estado visual de cada partido:
+//   Pendiente   → hora programada + icono reloj
+//   En curso    → marcador con color vivo + indicador live
+//   Finalizado  → marcador final con color apagado
+// ─────────────────────────────────────────────────────────────────────────────
 import 'dart:async';
 import 'package:flutter/material.dart';
 import '../../services/api_service.dart';

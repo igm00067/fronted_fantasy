@@ -1,3 +1,17 @@
+// ─────────────────────────────────────────────────────────────────────────────
+// services/api_service.dart — Fachada (Facade) de todos los servicios API
+//
+// Reúne en una sola clase todos los métodos de comunicación con el backend.
+// Delega internamente a las clases de dominio específicas:
+//   AuthApi       → autenticación (register, login, logout)
+//   LigasApi      → gestión de ligas, equipos, jugadores, clasificación
+//   MercadoApi    → mercado de subastas y pujas
+//   ChatApi       → mensajes y ofertas de traspaso
+//   SimulacionApi → confirmación de inicio, calendario, partidos, cambios
+//
+// Las pantallas existentes importan ApiService para mantener compatibilidad.
+// El código nuevo puede importar directamente la clase de dominio correspondiente.
+// ─────────────────────────────────────────────────────────────────────────────
 import 'package:http/http.dart' as http;
 import 'api/api_client.dart';
 import 'api/auth_api.dart';
@@ -84,6 +98,9 @@ class ApiService {
 
   static Future<Map<String, dynamic>> abandonarLiga(int ligaId) =>
       LigasApi.abandonarLiga(ligaId);
+
+  static Future<Map<String, dynamic>> expulsarParticipante(int ligaId, int usuarioId) =>
+      LigasApi.expulsarParticipante(ligaId, usuarioId);
 
   // ── Jugadores / Equipos / Competiciones ──────────────────────────────────────
   static Future<List<dynamic>> getJugadores({

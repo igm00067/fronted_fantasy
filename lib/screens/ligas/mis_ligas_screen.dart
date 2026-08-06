@@ -1,3 +1,24 @@
+// ─────────────────────────────────────────────────────────────────────────────
+// screens/ligas/mis_ligas_screen.dart — Lista de ligas del usuario
+//
+// Muestra todas las ligas en las que participa el usuario autenticado.
+// Usa LigasProvider (Consumer) para gestionar el estado de carga.
+//
+// Flujo:
+//   1. initState → cargarMisLigas() mediante addPostFrameCallback
+//      (diferido para tener el contexto disponible)
+//   2. Al tocar una liga → _navegarADetalleLiga() → muestra loading mientras
+//      carga los datos completos de la liga → push a DetalleLigaScreen
+//   3. Al volver de DetalleLigaScreen → .then() recarga la lista
+//      (por si el usuario abandonó la liga mientras estaba dentro)
+//
+// Widgets privados:
+//   _LigaCard — tarjeta individual de liga con avatar, estado, barra de progreso
+//               y chips de presupuesto + código de invitación
+//
+// Color del avatar: determinístico por primera letra del nombre de la liga
+// Color del estado: verde (en_curso) / gris (finalizada) / amarillo (pendiente)
+// ─────────────────────────────────────────────────────────────────────────────
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/ligas_provider.dart';
@@ -25,6 +46,10 @@ class _MisLigasScreenState extends State<MisLigasScreen> {
     });
   }
 
+  /// Navega a la pantalla de detalle de la liga seleccionada.
+  /// Primero carga los datos completos de la liga (GET /api/ligas/<id>)
+  /// para obtener campos que no están en el listado (ej. codigo_invitacion completo).
+  /// Muestra un spinner mientras carga para dar feedback al usuario.
   Future<void> _navegarADetalleLiga(Liga liga) async {
     showDialog(
       context: context,
@@ -34,11 +59,11 @@ class _MisLigasScreenState extends State<MisLigasScreen> {
     try {
       final ligaCompleta = await ApiService.getLiga(liga.id);
       if (mounted) {
-        Navigator.pop(context);
+        Navigator.pop(context); // cierra el spinner
         Navigator.push(
           context,
           MaterialPageRoute(builder: (_) => DetalleLigaScreen(liga: ligaCompleta)),
-        ).then((_) => context.read<LigasProvider>().cargarMisLigas());
+        ).then((_) => context.read<LigasProvider>().cargarMisLigas()); // recarga al volver
       }
     } catch (e) {
       if (mounted) {

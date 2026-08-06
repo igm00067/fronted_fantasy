@@ -1,3 +1,17 @@
+// ─────────────────────────────────────────────────────────────────────────────
+// screens/ligas/ver_equipo_usuario_screen.dart — Vista de plantilla de otro usuario
+//
+// Muestra la plantilla completa de un participante de la liga (no propia).
+// Se accede desde ClasificacionLigaScreen al tocar el nombre de un equipo rival.
+//
+// Tiene dos pestañas:
+//   "Titulares"  → los jugadores marcados como is_titular (alineación elegida)
+//   "Plantilla"  → todos los jugadores del equipo (titulares + suplentes)
+//
+// Al tocar un jugador → JugadorDetallesSheet con sus estadísticas completas.
+//
+// Datos: GET /api/ligas/<ligaId>/equipo/<usuarioId>
+// ─────────────────────────────────────────────────────────────────────────────
 import 'package:flutter/material.dart';
 import '../../services/api/ligas_api.dart';
 import '../../config/app_theme.dart';

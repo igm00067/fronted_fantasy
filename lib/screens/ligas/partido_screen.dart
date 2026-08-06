@@ -1,3 +1,31 @@
+// ─────────────────────────────────────────────────────────────────────────────
+// screens/ligas/partido_screen.dart — Seguimiento de un partido en tiempo real
+//
+// Permite al usuario ver el desarrollo del partido y gestionar sustituciones.
+// Se accede desde JornadaScreen al tocar un partido activo o finalizado.
+//
+// Actualización de datos:
+//   Timer cada 5 segundos → GET /api/ligas/partidos/<id>
+//   Devuelve estado, marcador, eventos y alineaciones actualizadas.
+//   Los eventos de Socket.IO (partido_minuto, partido_evento) también pueden
+//   actualizar la UI en tiempo real si el usuario tiene el socket activo.
+//
+// Gestión de cambios (sustituciones):
+//   _cambiosPendientes:   cambios seleccionados por el usuario (local)
+//   _cambiosRealizados:   cambios ya enviados al backend (del servidor)
+//   _maxCambios = 5:      límite total de cambios por partido
+//   Durante el descanso → "Aplicar cambios" → POST /cambios-descanso
+//
+// Estados del partido (campo 'estado'):
+//   'pendiente'     → no iniciado
+//   'primer_tiempo' → en curso (minutos 0-45)
+//   'descanso'      → se muestran controles de sustitución
+//   'segundo_tiempo'→ en curso (minutos 45-90+)
+//   'finalizado'    → se muestra resultado final
+//
+// _esEquipoLocal: determina si el equipo del usuario es el local o visitante
+//                 para mostrar los controles de sustitución del lado correcto.
+// ─────────────────────────────────────────────────────────────────────────────
 import 'dart:async';
 import 'package:flutter/material.dart';
 import '../../services/api_service.dart';
@@ -14,20 +42,20 @@ class PartidoScreen extends StatefulWidget {
 }
 
 class _PartidoScreenState extends State<PartidoScreen> {
-  Map<String, dynamic>? _partido;
-  bool _primeraCarga = true;
-  Timer? _timer;
+  Map<String, dynamic>? _partido;  // respuesta completa de GET /partidos/<id>
+  bool _primeraCarga = true;         // muestra spinner solo en la primera carga
+  Timer? _timer;                     // polling cada 5 segundos
   final ScrollController _scrollCtrl = ScrollController();
 
-  int? _miEquipoId;
-  int _cambiosRealizados = 0;
-  bool _esEquipoLocal = false;
-  Set<int> _jugadoresSalePendientes = {};
+  int? _miEquipoId;          // id del equipo del usuario autenticado en este partido
+  int _cambiosRealizados = 0; // cambios ya aplicados (del servidor)
+  bool _esEquipoLocal = false; // true si el equipo del usuario es el local
+  Set<int> _jugadoresSalePendientes = {}; // ids de jugadores ya marcados para salir
 
-  List<Map<String, dynamic>> _cambiosPendientes = [];
-  bool _enviandoCambios = false;
+  List<Map<String, dynamic>> _cambiosPendientes = []; // cambios seleccionados localmente
+  bool _enviandoCambios = false; // bloquea el botón mientras envía al backend
 
-  static const int _maxCambios = 5;
+  static const int _maxCambios = 5; // límite de sustituciones por partido
 
   @override
   void initState() {

@@ -1,3 +1,18 @@
+// ─────────────────────────────────────────────────────────────────────────────
+// screens/chat/chat_liga_screen.dart — Lista de conversaciones de la liga
+//
+// Muestra todos los participantes de la liga y las conversaciones existentes.
+// El usuario puede tocar cualquier participante para abrir/crear una conversación.
+//
+// Dos secciones:
+//   "Participantes" → lista de todos los miembros de la liga (excepto uno mismo)
+//                      Tocar → getOCrearConversacion() → ChatConversacionScreen
+//   "Mensajes"      → conversaciones existentes con su último mensaje
+//                      Tocar → ChatConversacionScreen directamente
+//
+// Datos: GET /api/ligas/<id> (para participantes) +
+//        GET /api/chat/conversaciones/<ligaId> (para conversaciones con mensajes)
+// ─────────────────────────────────────────────────────────────────────────────
 import 'package:flutter/material.dart';
 import '../../services/api_service.dart';
 import '../../config/app_theme.dart';

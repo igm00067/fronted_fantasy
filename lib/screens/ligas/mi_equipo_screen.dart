@@ -1,3 +1,21 @@
+// ─────────────────────────────────────────────────────────────────────────────
+// screens/ligas/mi_equipo_screen.dart — Gestión del equipo fantasy del usuario
+//
+// Pantalla con dos pestañas (TabBar):
+//   "Alineación"  → permite elegir titulares y formación (grid visual del campo)
+//   "Plantilla"   → lista de todos los jugadores con opción de vender
+//
+// Formaciones soportadas: 4-3-3, 4-4-2, 3-5-2, 5-3-2, 4-2-4
+// El mapa _alineacion asigna jugadores a posiciones (POR, DEF1..4, MED1..3, DEL1..3)
+//
+// Flujo de guardar alineación:
+//   Usuario asigna titulares → "Guardar" → POST /mi-equipo/alineacion
+//   El backend actualiza es_titular y posicion_en_campo en PlantillaEquipo
+//
+// Al tocar un jugador → JugadorDetallesSheet (bottom sheet con stats FIFA y medias)
+// Al tocar "Vender" → confirmación → POST /mi-equipo/vender-jugador
+//   El backend suma el precio al saldo del equipo y elimina de PlantillaEquipo
+// ─────────────────────────────────────────────────────────────────────────────
 import 'package:flutter/material.dart';
 import '../../services/api_service.dart';
 import '../../services/api/ligas_api.dart';

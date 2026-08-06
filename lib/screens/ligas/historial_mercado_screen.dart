@@ -1,3 +1,17 @@
+// ─────────────────────────────────────────────────────────────────────────────
+// screens/ligas/historial_mercado_screen.dart — Historial de transacciones
+//
+// Lista todas las transacciones ocurridas en la liga:
+//   - Subastas ganadas (FICHAJE_MERCADO): quién compró qué jugador y a qué precio
+//   - Ventas al mercado libre (VENTA): jugadores devueltos
+//   - Traspasos directos (TRASPASO / VENTA por oferta): intercambios entre equipos
+//   - Fichajes iniciales (FICHAJE_INICIAL): jugadores asignados al inicio
+//
+// Usa el paquete `timeago` con locale 'es' para mostrar tiempos relativos
+// (ej. "hace 3 minutos", "hace 2 días").
+//
+// Datos: GET /api/mercado/<ligaId>/historial
+// ─────────────────────────────────────────────────────────────────────────────
 import 'package:flutter/material.dart';
 import '../../services/api_service.dart';
 import '../../config/app_theme.dart';

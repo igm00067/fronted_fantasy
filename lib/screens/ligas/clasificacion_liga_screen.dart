@@ -1,4 +1,27 @@
+// ─────────────────────────────────────────────────────────────────────────────
+// screens/ligas/clasificacion_liga_screen.dart — Tabla de clasificación
+//
+// Muestra la clasificación de la liga en tiempo real: puntos, V/E/D, goles, etc.
+// Los datos vienen de GET /api/ligas/<id>/clasificacion.
+//
+// Características:
+//   - Animación de pulso en el trofeo del líder (AnimationController)
+//   - Al tocar un equipo → navega a VerEquipoUsuarioScreen (para ver su plantilla)
+//   - Al tocar el propio equipo → también navega (para ver tu propia plantilla vista así)
+//   - Botón de detalle por equipo → showModalBottomSheet con estadísticas detalladas
+//     (V/E/D/PJ con colores, GF/GC/DIF con iconos) — rediseñado como bottom sheet
+//
+// Posición visual:
+//   🥇 1º → dorado con borde brillante
+//   🥈 2º → plateado
+//   🥉 3º → bronce
+//   Resto → oscuro sin distinción
+//
+// _pulseCtrl / _pulseAnim: animación de escala 0.95↔1.05 en loop para el trofeo
+// ─────────────────────────────────────────────────────────────────────────────
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../../providers/auth_provider.dart';
 import '../../services/api_service.dart';
 import '../../config/app_theme.dart';
 import 'ver_equipo_usuario_screen.dart';
@@ -16,13 +39,14 @@ class ClasificacionLigaScreen extends StatefulWidget {
 
 class _ClasificacionLigaScreenState extends State<ClasificacionLigaScreen>
     with SingleTickerProviderStateMixin {
-  List<dynamic> _clasificacion = [];
-  Map<String, dynamic>? _liga;
+  List<dynamic> _clasificacion = []; // lista ordenada por puntos (descendente)
+  Map<String, dynamic>? _liga;        // datos de la liga (nombre, estado, etc.)
   bool _cargando = true;
   String? _error;
 
+  // Animación de pulso para el trofeo del líder de la clasificación
   late AnimationController _pulseCtrl;
-  late Animation<double> _pulseAnim;
+  late Animation<double> _pulseAnim; // escala oscila entre 0.95 y 1.05
 
   @override
   void initState() {
@@ -444,69 +468,297 @@ class _ClasificacionLigaScreenState extends State<ClasificacionLigaScreen>
   }
 
   void _mostrarDetalles(Map<String, dynamic> participante) {
-    showDialog(
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    final miUsuarioId = authProvider.usuario?['id'] as int?;
+    final creadorId = _liga?['creador_id'] as int?;
+    final esCreador = miUsuarioId != null && creadorId != null && miUsuarioId == creadorId;
+    final esEntradaPropia = participante['usuario_id'] == miUsuarioId;
+    final posicion = participante['posicion'] as int? ?? 0;
+    final colorPos = _getColorPosicion(posicion);
+    final dif = participante['diferencia_goles'] as int? ?? 0;
+
+    showModalBottomSheet(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text(participante['equipo_nombre']),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildInfoRow('Jugador', participante['usuario_nombre']),
-            _buildInfoRow('Posición', '#${participante['posicion']}'),
-            const Divider(),
-            _buildInfoRow('Partidos jugados', '${participante['partidos_jugados']}'),
-            _buildInfoRow('Victorias', '${participante['partidos_ganados']}'),
-            _buildInfoRow('Empates', '${participante['partidos_empatados']}'),
-            _buildInfoRow('Derrotas', '${participante['partidos_perdidos']}'),
-            const Divider(),
-            _buildInfoRow('Puntos', '${participante['puntos']}'),
-            _buildInfoRow('Goles a favor', '${participante['goles_favor']}'),
-            _buildInfoRow('Goles en contra', '${participante['goles_contra']}'),
-            _buildInfoRow(
-              'Diferencia',
-              '${participante['diferencia_goles'] > 0 ? '+' : ''}${participante['diferencia_goles']}',
-            ),
-          ],
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => Container(
+        decoration: const BoxDecoration(
+          color: AppTheme.surfaceColor,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cerrar'),
-          ),
-          ElevatedButton.icon(
-            onPressed: () {
-              Navigator.pop(context);
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => VerEquipoUsuarioScreen(
-                    ligaId: widget.ligaId,
-                    usuarioId: participante['usuario_id'],
-                    nombreUsuario: participante['usuario_nombre'],
-                    nombreEquipo: participante['equipo_nombre'],
+        padding: const EdgeInsets.fromLTRB(20, 12, 20, 28),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Handle bar
+            Center(
+              child: Container(
+                width: 40, height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.white24,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+            // Header
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [colorPos.withOpacity(0.25), AppTheme.surfaceVariantColor],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: colorPos.withOpacity(0.4)),
+              ),
+              child: Row(
+                children: [
+                  CircleAvatar(
+                    backgroundColor: colorPos,
+                    radius: 24,
+                    child: Text(
+                      '#$posicion',
+                      style: const TextStyle(
+                          color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          participante['equipo_nombre'] ?? '',
+                          style: const TextStyle(
+                              color: Colors.white, fontWeight: FontWeight.bold, fontSize: 17),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        Text(
+                          participante['usuario_nombre'] ?? '',
+                          style: const TextStyle(
+                              color: AppTheme.textSecondaryColor, fontSize: 13),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+                    decoration: BoxDecoration(
+                      color: AppTheme.secondaryColor,
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text(
+                      '${participante['puntos']} pts',
+                      style: const TextStyle(
+                          color: Colors.black, fontWeight: FontWeight.bold, fontSize: 15),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 14),
+            // V / E / D / PJ stat boxes
+            Row(
+              children: [
+                _buildStatBox('V', '${participante['partidos_ganados']}', Colors.green),
+                const SizedBox(width: 8),
+                _buildStatBox('E', '${participante['partidos_empatados']}', Colors.orange),
+                const SizedBox(width: 8),
+                _buildStatBox('D', '${participante['partidos_perdidos']}', Colors.red),
+                const SizedBox(width: 8),
+                _buildStatBox('PJ', '${participante['partidos_jugados']}',
+                    AppTheme.textSecondaryColor),
+              ],
+            ),
+            const SizedBox(height: 10),
+            // GF / GC / DIF
+            Row(
+              children: [
+                _buildGoalBox(
+                    Icons.sports_soccer, 'GF',
+                    '${participante['goles_favor']}', const Color(0xFF64B5F6)),
+                const SizedBox(width: 8),
+                _buildGoalBox(
+                    Icons.sports_soccer, 'GC',
+                    '${participante['goles_contra']}', const Color(0xFFEF9A9A)),
+                const SizedBox(width: 8),
+                _buildGoalBox(
+                  dif >= 0 ? Icons.trending_up : Icons.trending_down,
+                  'DIF',
+                  '${dif > 0 ? '+' : ''}$dif',
+                  dif >= 0 ? Colors.green[300]! : Colors.red[300]!,
+                ),
+              ],
+            ),
+            const SizedBox(height: 20),
+            // Action buttons
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: () => Navigator.pop(ctx),
+                    icon: const Icon(Icons.close, size: 16),
+                    label: const Text('Cerrar'),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: AppTheme.textSecondaryColor,
+                      side: const BorderSide(color: AppTheme.borderColor),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                    ),
                   ),
                 ),
-              );
-            },
-            icon: const Icon(Icons.visibility),
-            label: const Text('Ver equipo'),
-          ),
-        ],
+                const SizedBox(width: 8),
+                Expanded(
+                  flex: 2,
+                  child: ElevatedButton.icon(
+                    onPressed: () {
+                      Navigator.pop(ctx);
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => VerEquipoUsuarioScreen(
+                            ligaId: widget.ligaId,
+                            usuarioId: participante['usuario_id'],
+                            nombreUsuario: participante['usuario_nombre'],
+                            nombreEquipo: participante['equipo_nombre'],
+                          ),
+                        ),
+                      );
+                    },
+                    icon: const Icon(Icons.visibility, size: 16),
+                    label: const Text('Ver equipo'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppTheme.primaryColor,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            if (esCreador && !esEntradaPropia && !_ligaFinalizada) ...[
+              const SizedBox(height: 8),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: () {
+                    Navigator.pop(ctx);
+                    _confirmarExpulsion(participante);
+                  },
+                  icon: const Icon(Icons.person_remove, size: 16),
+                  label: const Text('Expulsar de la liga'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.red[700],
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                  ),
+                ),
+              ),
+            ],
+          ],
+        ),
       ),
     );
   }
 
-  Widget _buildInfoRow(String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text('$label:', style: const TextStyle(fontWeight: FontWeight.bold)),
-          Text(value),
-        ],
+  Widget _buildStatBox(String label, String value, Color color) {
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        decoration: BoxDecoration(
+          color: color.withOpacity(0.12),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: color.withOpacity(0.35)),
+        ),
+        child: Column(
+          children: [
+            Text(value,
+                style: TextStyle(
+                    color: color, fontWeight: FontWeight.bold, fontSize: 20)),
+            const SizedBox(height: 2),
+            Text(label,
+                style: const TextStyle(
+                    color: AppTheme.textSecondaryColor, fontSize: 11)),
+          ],
+        ),
       ),
     );
   }
+
+  Widget _buildGoalBox(IconData icon, String label, String value, Color color) {
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 10),
+        decoration: BoxDecoration(
+          color: AppTheme.surfaceVariantColor,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: AppTheme.borderColor),
+        ),
+        child: Column(
+          children: [
+            Icon(icon, color: color, size: 16),
+            const SizedBox(height: 4),
+            Text(value,
+                style: TextStyle(
+                    color: color, fontWeight: FontWeight.bold, fontSize: 16)),
+            Text(label,
+                style: const TextStyle(
+                    color: AppTheme.textSecondaryColor, fontSize: 10)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _confirmarExpulsion(Map<String, dynamic> participante) async {
+    final nombre = participante['usuario_nombre'] ?? 'este jugador';
+    final confirmar = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Expulsar miembro'),
+        content: Text(
+          '¿Expulsar a $nombre de la liga?\n\n'
+          'Se liberarán todos sus jugadores al mercado y perderá '
+          'los partidos restantes 3-0.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            child: const Text('Expulsar', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+    if (confirmar != true) return;
+
+    try {
+      await ApiService.expulsarParticipante(
+          widget.ligaId, participante['usuario_id'] as int);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('$nombre ha sido expulsado de la liga'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+        _cargarClasificacion();
+      }
+    } on Exception catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(e.toString().replaceAll('Exception: ', '')),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
 }

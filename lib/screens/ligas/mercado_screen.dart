@@ -1,3 +1,25 @@
+// ─────────────────────────────────────────────────────────────────────────────
+// screens/ligas/mercado_screen.dart — Mercado de subastas de jugadores
+//
+// Muestra la lista de jugadores en subasta activa en la liga.
+// Cada item incluye: jugador, puja actual, mejor postor y tiempo restante.
+//
+// Sistema de timers doble:
+//   _pollTimer (5s):       sincroniza datos con el servidor
+//                          → actualiza puja_actual, mejor_postor, tiempo real
+//   _countdownTimer (1s):  decrementa el tiempo restante localmente cada segundo
+//                          sin llamar al servidor, para dar sensación fluida
+//
+// El saldo disponible del usuario se muestra en la cabecera y se actualiza
+// automáticamente tras cada puja exitosa.
+//
+// Al tocar un jugador → JugadorDetallesSheet (bottom sheet con stats del jugador)
+// Al tocar "Pujar"   → _mostrarDialogoPuja() → bottom sheet con slider y chips rápidos
+//                        (implementado con StatefulBuilder + showModalBottomSheet)
+//
+// FAB de búsqueda (desde DetalleLigaScreen): navega a BuscarJugadoresScreen
+// para buscar jugadores del catálogo y verlos desde esta misma sección.
+// ─────────────────────────────────────────────────────────────────────────────
 import 'package:flutter/material.dart';
 import '../../services/api/mercado_api.dart';
 import '../../services/api/ligas_api.dart';
@@ -21,13 +43,14 @@ class MercadoScreen extends StatefulWidget {
 }
 
 class _MercadoScreenState extends State<MercadoScreen> {
-  List<dynamic> _jugadoresMercado = [];
-  double? _saldoDisponible;
+  List<dynamic> _jugadoresMercado = []; // items activos devueltos por GET /api/mercado/<id>
+  double? _saldoDisponible;              // saldo del usuario en esta liga
   bool _cargando = true;
   String? _error;
-  Timer? _pollTimer;
-  Timer? _countdownTimer;
-  // Mapa local id -> segundos restantes para el countdown por segundo
+  Timer? _pollTimer;       // timer de 5s para sincronizar con el servidor
+  Timer? _countdownTimer;  // timer de 1s para decrementar _tiemposLocales fluidamente
+  // Mapa id_mercado → segundos_restantes calculado desde fecha_cierre del servidor.
+  // Se actualiza en cada poll y se decrementa localmente entre polls.
   final Map<int, int> _tiemposLocales = {};
 
   @override
@@ -383,88 +406,286 @@ class _MercadoScreenState extends State<MercadoScreen> {
   void _mostrarDialogoPuja(Map<String, dynamic> mercado, Map<String, dynamic> jugador) {
     final precioActual = double.parse(mercado['precio_actual'].toString());
     final precioMinimo = precioActual + 0.5;
-    final controller = TextEditingController(text: precioMinimo.toStringAsFixed(1));
+    double puja = precioMinimo;
+    final posicion = jugador['posicion'] as String? ?? '';
+    final colorPos = _getColorPosicion(posicion);
 
-    showDialog(
+    showModalBottomSheet(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text('Pujar por ${jugador['nombre']}'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (sheetCtx) => StatefulBuilder(
+        builder: (sheetCtx, setStateLocal) {
+          final pujaValida = puja > precioActual;
+          final saldoSuficiente = _saldoDisponible == null || puja <= _saldoDisponible!;
+
+          return Container(
+            decoration: const BoxDecoration(
+              color: AppTheme.surfaceColor,
+              borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+            ),
+            padding: EdgeInsets.fromLTRB(
+                20, 12, 20, MediaQuery.of(sheetCtx).viewInsets.bottom + 24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
               children: [
-                Text('Precio actual: ${precioActual}M'),
-                if (_saldoDisponible != null)
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                // Handle bar
+                Center(
+                  child: Container(
+                    width: 40, height: 4,
                     decoration: BoxDecoration(
-                      color: AppTheme.secondaryColor.withOpacity(0.15),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: AppTheme.secondaryColor.withOpacity(0.5)),
+                      color: Colors.white24,
+                      borderRadius: BorderRadius.circular(2),
                     ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(Icons.account_balance_wallet,
-                            size: 12, color: AppTheme.secondaryColor),
-                        const SizedBox(width: 4),
-                        Text(
-                          '${_saldoDisponible!.toStringAsFixed(1)}M',
+                  ),
+                ),
+                const SizedBox(height: 16),
+                // Player header
+                Row(
+                  children: [
+                    CircleAvatar(
+                      backgroundColor: colorPos,
+                      radius: 22,
+                      child: Text(posicion,
                           style: const TextStyle(
-                            color: AppTheme.secondaryColor,
+                              color: Colors.white, fontWeight: FontWeight.bold)),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            jugador['nombre'] ?? '',
+                            style: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 17),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          Text(
+                            '${mercado['equipo_real_nombre'] ?? ''} · Media ${jugador['media_fifa'] ?? ''}',
+                            style: const TextStyle(
+                                color: AppTheme.textSecondaryColor, fontSize: 12),
+                          ),
+                        ],
+                      ),
+                    ),
+                    if (_saldoDisponible != null)
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 10, vertical: 5),
+                        decoration: BoxDecoration(
+                          color: AppTheme.secondaryColor.withOpacity(0.15),
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(
+                              color: AppTheme.secondaryColor.withOpacity(0.4)),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.account_balance_wallet,
+                                size: 12, color: AppTheme.secondaryColor),
+                            const SizedBox(width: 4),
+                            Text(
+                              '${_saldoDisponible!.toStringAsFixed(1)}M',
+                              style: const TextStyle(
+                                  color: AppTheme.secondaryColor,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 12),
+                            ),
+                          ],
+                        ),
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 20),
+                // Current price row
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                      vertical: 12, horizontal: 16),
+                  decoration: BoxDecoration(
+                    color: AppTheme.surfaceVariantColor,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: AppTheme.borderColor),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text('Precio actual',
+                          style: TextStyle(
+                              color: AppTheme.textSecondaryColor, fontSize: 13)),
+                      Text(
+                        '${precioActual.toStringAsFixed(1)}M',
+                        style: const TextStyle(
+                            color: Colors.white,
                             fontWeight: FontWeight.bold,
-                            fontSize: 12,
+                            fontSize: 16),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 20),
+                // Amount selector
+                const Text('Tu puja',
+                    style: TextStyle(
+                        color: AppTheme.textSecondaryColor, fontSize: 13)),
+                const SizedBox(height: 12),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    _buildBidButton(
+                      icon: Icons.remove,
+                      onPressed: puja > precioMinimo
+                          ? () => setStateLocal(() =>
+                              puja = (puja - 0.5)
+                                  .clamp(precioMinimo, double.infinity))
+                          : null,
+                    ),
+                    const SizedBox(width: 24),
+                    Column(
+                      children: [
+                        Text(
+                          '${puja.toStringAsFixed(1)}M',
+                          style: TextStyle(
+                            color: pujaValida && saldoSuficiente
+                                ? AppTheme.secondaryColor
+                                : Colors.red[300],
+                            fontWeight: FontWeight.bold,
+                            fontSize: 34,
+                          ),
+                        ),
+                        Text(
+                          !saldoSuficiente
+                              ? 'Saldo insuficiente'
+                              : '+${(puja - precioActual).toStringAsFixed(1)}M sobre el precio',
+                          style: TextStyle(
+                            color: saldoSuficiente
+                                ? AppTheme.textSecondaryColor
+                                : Colors.red[300],
+                            fontSize: 11,
                           ),
                         ),
                       ],
                     ),
-                  ),
+                    const SizedBox(width: 24),
+                    _buildBidButton(
+                      icon: Icons.add,
+                      onPressed: () =>
+                          setStateLocal(() => puja = puja + 0.5),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                // Quick increments
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    _buildQuickChip(
+                        '+1M', () => setStateLocal(() => puja += 1.0)),
+                    const SizedBox(width: 8),
+                    _buildQuickChip(
+                        '+5M', () => setStateLocal(() => puja += 5.0)),
+                    const SizedBox(width: 8),
+                    _buildQuickChip(
+                        '+10M', () => setStateLocal(() => puja += 10.0)),
+                  ],
+                ),
+                const SizedBox(height: 20),
+                // Confirm row
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: () => Navigator.pop(sheetCtx),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: AppTheme.textSecondaryColor,
+                          side: const BorderSide(color: AppTheme.borderColor),
+                          padding:
+                              const EdgeInsets.symmetric(vertical: 14),
+                        ),
+                        child: const Text('Cancelar'),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      flex: 2,
+                      child: ElevatedButton.icon(
+                        onPressed: pujaValida && saldoSuficiente
+                            ? () async {
+                                Navigator.pop(sheetCtx);
+                                await _realizarPuja(
+                                    mercado['id'], puja, jugador['nombre']);
+                              }
+                            : null,
+                        icon: const Icon(Icons.gavel, size: 18),
+                        label: Text('Pujar ${puja.toStringAsFixed(1)}M'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppTheme.secondaryColor,
+                          foregroundColor: Colors.black,
+                          padding:
+                              const EdgeInsets.symmetric(vertical: 14),
+                          textStyle: const TextStyle(
+                              fontWeight: FontWeight.bold, fontSize: 15),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ],
             ),
-            const SizedBox(height: 8),
-            const Text(
-              'La puja mínima es +0.5M sobre el precio actual',
-              style: TextStyle(color: AppTheme.textSecondaryColor, fontSize: 12),
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: controller,
-              keyboardType: const TextInputType.numberWithOptions(decimal: true),
-              decoration: const InputDecoration(
-                labelText: 'Cantidad (M)',
-                border: OutlineInputBorder(),
-                prefixIcon: Icon(Icons.attach_money),
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancelar'),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              final cantidad = double.tryParse(controller.text);
-              if (cantidad == null || cantidad <= precioActual) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text('La puja debe ser mayor a ${precioActual}M'),
-                    backgroundColor: Colors.red,
-                  ),
-                );
-                return;
-              }
+          );
+        },
+      ),
+    );
+  }
 
-              Navigator.pop(context);
-              await _realizarPuja(mercado['id'], cantidad, jugador['nombre']);
-            },
-            child: const Text('Confirmar Puja'),
+  Widget _buildBidButton(
+      {required IconData icon, VoidCallback? onPressed}) {
+    return InkWell(
+      onTap: onPressed,
+      borderRadius: BorderRadius.circular(30),
+      child: Container(
+        width: 48,
+        height: 48,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: onPressed != null
+              ? AppTheme.primaryColor
+              : AppTheme.surfaceVariantColor,
+          border: Border.all(
+            color: onPressed != null
+                ? AppTheme.secondaryColor.withOpacity(0.5)
+                : AppTheme.borderColor,
           ),
-        ],
+        ),
+        child: Icon(icon,
+            color: onPressed != null
+                ? AppTheme.secondaryColor
+                : AppTheme.textSecondaryColor),
+      ),
+    );
+  }
+
+  Widget _buildQuickChip(String label, VoidCallback onTap) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding:
+            const EdgeInsets.symmetric(horizontal: 16, vertical: 7),
+        decoration: BoxDecoration(
+          color: AppTheme.secondaryColor.withOpacity(0.12),
+          borderRadius: BorderRadius.circular(20),
+          border:
+              Border.all(color: AppTheme.secondaryColor.withOpacity(0.35)),
+        ),
+        child: Text(
+          label,
+          style: const TextStyle(
+              color: AppTheme.secondaryColor,
+              fontWeight: FontWeight.bold,
+              fontSize: 13),
+        ),
       ),
     );
   }

@@ -1,6 +1,19 @@
+// ─────────────────────────────────────────────────────────────────────────────
+// models/liga.dart — Modelos Dart para ligas y equipos fantasy
+//
+// Clases inmutables que mapean la respuesta JSON del backend.
+// Se usan en LigasProvider y en la mayoría de pantallas de ligas.
+//
+// Liga: representa una liga fantasy (tabla ligas_fantasy en el backend)
+// EquipoFantasy: equipo de un usuario dentro de una liga (tabla equipos_fantasy)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// Modelo inmutable de una liga fantasy.
+/// Se crea desde el JSON del endpoint GET /api/ligas/mis-ligas o GET /api/ligas/<id>.
 class Liga {
   final int id;
   final String nombre;
+  // Estado del ciclo de vida: 'pendiente' (backend) se muestra como 'esperando'
   final String estado; // 'esperando', 'en_curso', 'finalizada'
   final int competicionId;
   final int creadorId;
@@ -44,6 +57,8 @@ class Liga {
   bool get estaLlena => numParticipantes >= maxParticipantes;
 }
 
+/// Modelo inmutable del equipo fantasy de un usuario en una liga.
+/// Se crea desde la respuesta de GET /api/ligas/<id>/mi-equipo.
 class EquipoFantasy {
   final int id;
   final String nombre;

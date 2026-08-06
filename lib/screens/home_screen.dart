@@ -1,3 +1,23 @@
+// ─────────────────────────────────────────────────────────────────────────────
+// screens/home_screen.dart — Pantalla principal tras el login
+//
+// Es la primera pantalla que ve el usuario autenticado. Muestra:
+//   - Saludo personalizado con nombre y email del usuario (de AuthProvider)
+//   - Stats decorativos (Ligas / Partidos / Mercado) solo estéticos
+//   - Botón principal "Ver Mis Ligas" → MisLigasScreen
+//   - Botones secundarios "Crear Liga" y "Unirse a Liga"
+//   - Frase motivacional al pie
+//
+// Se accede aquí desde main.dart cuando AuthProvider.isAuthenticated=true.
+// El botón de logout llama a _confirmarLogout() que pide confirmación y luego
+// llama a authProvider.logout(), lo que hace que Consumer<AuthProvider> en
+// main.dart redirija automáticamente a LoginScreen.
+//
+// Widgets privados de este archivo:
+//   _StatsRow / _StatItem     — fila decorativa de iconos en el hero
+//   _MainActionCard           — tarjeta grande con gradiente (Ver Mis Ligas)
+//   _SecondaryActionCard      — tarjeta compacta (Crear Liga / Unirse)
+// ─────────────────────────────────────────────────────────────────────────────
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
@@ -6,6 +26,7 @@ import 'ligas/mis_ligas_screen.dart';
 import 'ligas/crear_liga_screen.dart';
 import 'ligas/unirse_liga_screen.dart';
 
+/// Pantalla principal post-login. No gestiona estado propio; solo navega a sub-pantallas.
 class HomeScreen extends StatelessWidget {
   const HomeScreen({Key? key}) : super(key: key);
 

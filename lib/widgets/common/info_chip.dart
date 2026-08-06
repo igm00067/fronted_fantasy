@@ -1,3 +1,13 @@
+// ─────────────────────────────────────────────────────────────────────────────
+// widgets/common/info_chip.dart — Chip de información reutilizable
+//
+// Chip pequeño con icono + texto, con fondo semitransparente del color indicado.
+// Diseñado para mostrar datos compactos en tarjetas sin ocupar mucho espacio.
+//
+// Se usa en:
+//   _LigaCard (MisLigasScreen): presupuesto inicial y código de invitación
+//   Potencialmente en cualquier otra tarjeta que necesite datos compactos
+// ─────────────────────────────────────────────────────────────────────────────
 import 'package:flutter/material.dart';
 
 /// Chip informativo con icono + texto. Usado en tarjetas de liga, mercado, etc.

@@ -20,6 +20,7 @@ dependencies:
   # 📦 Añadido para poder usar MultiProvider y Provider
   provider: ^6.1.2
   cached_network_image: ^3.3.0
+  flutter_local_notifications: ^17.2.4
 
 dev_dependencies:
   flutter_test:

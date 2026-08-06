@@ -1,3 +1,23 @@
+// ─────────────────────────────────────────────────────────────────────────────
+// screens/ligas/inicio_liga_screen.dart — Sala de espera antes de iniciar liga
+//
+// Pantalla mostrada cuando la liga está en estado 'pendiente'.
+// Los participantes deben confirmar que están listos para empezar.
+// Cuando TODOS los participantes confirmen:
+//   1. El backend asigna jugadores aleatorios a cada equipo
+//   2. Genera el calendario round-robin
+//   3. Cambia el estado a 'en_curso'
+//   4. DetalleLigaScreen.polling() detecta el cambio y reconstruye las pestañas
+//
+// Polling cada 5 segundos para actualizar la lista de quién ha confirmado.
+// Se pausa mientras _enviando=true para evitar sobreescribir estados intermedios.
+//
+// Funcionalidades:
+//   - Confirmar/retirar confirmación de inicio
+//   - Ver la lista de participantes con indicador de quién ha confirmado
+//   - Solo el creador puede expulsar participantes (swipe o botón)
+//   - El creador también puede confirmar/retirar como cualquier participante
+// ─────────────────────────────────────────────────────────────────────────────
 import 'dart:async';
 import 'package:flutter/material.dart';
 import '../../services/api_service.dart';
@@ -18,9 +38,15 @@ class InicioLigaScreen extends StatefulWidget {
 }
 
 class _InicioLigaScreenState extends State<InicioLigaScreen> {
-  Map<String, dynamic>? _estado;
+  Map<String, dynamic>? _estado; // respuesta de GET /api/ligas/<id>/estado-inicio
   bool _cargando = true;
-  bool _enviando = false;
+  bool _enviando = false;  // true mientras se envía confirmación/retiro (bloquea polling)
+  int? _creadorId;         // id del creador de la liga (del campo 'creador_id' del estado)
+  int? _miUsuarioId;       // id del usuario autenticado (del campo 'mi_usuario_id')
+
+  // El creador puede expulsar participantes; los demás solo confirmar/retirar
+  bool get _esCreador =>
+      _creadorId != null && _miUsuarioId != null && _creadorId == _miUsuarioId;
   Timer? _pollingTimer;
 
   @override
@@ -43,7 +69,12 @@ class _InicioLigaScreenState extends State<InicioLigaScreen> {
     setState(() => _cargando = true);
     try {
       final data = await ApiService.getEstadoInicio(widget.ligaId);
-      setState(() { _estado = data; _cargando = false; });
+      setState(() {
+        _estado = data;
+        _cargando = false;
+        _creadorId = data['creador_id'] as int?;
+        _miUsuarioId = data['mi_usuario_id'] as int?;
+      });
     } catch (e) {
       setState(() => _cargando = false);
     }
@@ -232,6 +263,25 @@ class _InicioLigaScreenState extends State<InicioLigaScreen> {
 
   Widget _buildParticipanteTile(Map<String, dynamic> p) {
     final confirmo = p['confirmado'] == true;
+    final esYo = p['usuario_id'] == _miUsuarioId;
+
+    Widget trailing = confirmo
+        ? const Text('✓ Listo',
+            style: TextStyle(
+                color: AppTheme.secondaryColor,
+                fontWeight: FontWeight.bold,
+                fontSize: 13))
+        : const Text('Pendiente',
+            style: TextStyle(color: AppTheme.textSecondaryColor, fontSize: 13));
+
+    if (_esCreador && !esYo) {
+      trailing = IconButton(
+        icon: const Icon(Icons.person_remove_outlined, color: Colors.red, size: 20),
+        tooltip: 'Expulsar',
+        onPressed: () => _confirmarExpulsion(p),
+      );
+    }
+
     return ListTile(
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
       leading: CircleAvatar(
@@ -244,10 +294,64 @@ class _InicioLigaScreenState extends State<InicioLigaScreen> {
           size: 18,
         ),
       ),
-      title: Text(p['nombre'] ?? '', style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
-      trailing: confirmo
-          ? const Text('✓ Listo', style: TextStyle(color: AppTheme.secondaryColor, fontWeight: FontWeight.bold, fontSize: 13))
-          : const Text('Pendiente', style: TextStyle(color: AppTheme.textSecondaryColor, fontSize: 13)),
+      title: Text(p['nombre'] ?? '',
+          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+      trailing: trailing,
     );
+  }
+
+  Future<void> _confirmarExpulsion(Map<String, dynamic> p) async {
+    final nombre = p['nombre'] ?? 'este jugador';
+    final confirmar = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Expulsar miembro'),
+        content: Text(
+          '¿Expulsar a $nombre de la liga?\n\n'
+          'Se liberarán todos sus jugadores al mercado y perderá '
+          'los partidos restantes 3-0.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            child: const Text('Expulsar', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+    if (confirmar != true) return;
+    await _expulsarParticipante(p['usuario_id'] as int, nombre);
+  }
+
+  Future<void> _expulsarParticipante(int usuarioId, String nombre) async {
+    setState(() => _enviando = true);
+    try {
+      await ApiService.expulsarParticipante(widget.ligaId, usuarioId);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('$nombre ha sido expulsado de la liga'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+        await _cargar();
+      }
+    } on Exception catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(e.toString().replaceAll('Exception: ', '')),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _enviando = false);
+    }
   }
 }

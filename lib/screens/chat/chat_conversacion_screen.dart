@@ -1,3 +1,26 @@
+// ─────────────────────────────────────────────────────────────────────────────
+// screens/chat/chat_conversacion_screen.dart — Pantalla de conversación 1:1
+//
+// Muestra el historial de mensajes entre dos usuarios de la liga.
+// Soporta dos tipos de mensajes:
+//   TEXTO  → burbuja estándar con texto
+//   OFERTA → card especial con los detalles del intercambio propuesto y
+//             botones Aceptar/Rechazar (solo visibles para el destinatario)
+//
+// Integración Socket.IO:
+//   Al abrir → SocketService.joinConversation(id) → join a sala conv_<id>
+//   Recibe 'new_message' → agrega el mensaje en tiempo real a _mensajes
+//   Recibe 'typing' → muestra indicador "está escribiendo..."
+//   Al escribir → SocketService.setTyping(id, true/false)
+//   Al cerrar → sale de la sala y cancela el timer de "deja de escribir"
+//
+// Polling cada 10 segundos como fallback por si el socket no entrega el mensaje.
+//
+// Flujo de oferta:
+//   Botón "+" → CrearOfertaScreen → POST /chat/oferta/crear
+//   Al volver → recarga mensajes para mostrar la oferta enviada
+//   Al aceptar → POST /chat/oferta/<id>/responder?accion=ACEPTAR → intercambio ejecutado
+// ─────────────────────────────────────────────────────────────────────────────
 import 'package:flutter/material.dart';
 import '../../services/api_service.dart';
 import '../../services/socket_service.dart';

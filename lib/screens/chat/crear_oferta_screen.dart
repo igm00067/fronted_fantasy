@@ -1,3 +1,23 @@
+// ─────────────────────────────────────────────────────────────────────────────
+// screens/chat/crear_oferta_screen.dart — Creación de oferta de traspaso
+//
+// Permite al usuario construir una oferta de intercambio para enviar al rival.
+// Una oferta puede incluir cualquier combinación de:
+//   - Jugador que ofreces (de tu plantilla)
+//   - Dinero que ofreces
+//   - Jugador que solicitas (de la plantilla del rival)
+//   - Dinero que solicitas
+//   - Mensaje de texto
+//
+// Datos cargados al inicio:
+//   - GET /api/ligas/<id>/mi-equipo           → tus jugadores (para ofrecer)
+//   - GET /api/ligas/<id>/equipo/<rivalId>     → jugadores del rival (para solicitar)
+//   - GET /api/ligas/<id>/mi-equipo            → saldo disponible del usuario
+//
+// Al confirmar → POST /api/chat/oferta/crear con todos los campos
+// El backend crea un mensaje de tipo OFERTA en la conversación y emite
+// 'new_message' por Socket.IO al destinatario.
+// ─────────────────────────────────────────────────────────────────────────────
 import 'package:flutter/material.dart';
 import '../../services/api_service.dart';
 import '../../config/app_theme.dart';

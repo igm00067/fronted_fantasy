@@ -1,8 +1,30 @@
+// ─────────────────────────────────────────────────────────────────────────────
+// screens/ligas/buscar_jugadores_screen.dart — Catálogo completo de jugadores
+//
+// Permite explorar todos los jugadores de la competición con filtros y ordenación.
+// Se abre desde el FAB de búsqueda en MercadoScreen/DetalleLigaScreen.
+//
+// Filtros disponibles:
+//   - Búsqueda por nombre (filtro local sobre los datos ya cargados)
+//   - Filtro por equipo real (dropdown con equipos de la competición)
+//   - Filtro por posición (POR / DEF / MED / DEL)
+//
+// Ordenaciones (enum OrdenJugador):
+//   nombreAsc/Desc, precioAsc/Desc, mediaAsc/Desc
+//
+// Datos cargados al inicio:
+//   - GET /api/jugadores?equipo_real_id=... (todos los jugadores filtrados)
+//   - GET /api/equipos?competicion_id=... (para el dropdown de equipos)
+//   - GET /api/ligas/<id>/propiedad-jugadores (para mostrar a qué equipo pertenece)
+//
+// Al tocar un jugador → JugadorDetallesSheet con stats FIFA y disponibilidad.
+// ─────────────────────────────────────────────────────────────────────────────
 import 'package:flutter/material.dart';
 import '../../services/api_service.dart';
 import '../../config/app_theme.dart';
 import '../../widgets/jugador_detalles_sheet.dart';
 
+/// Opciones de ordenación para la lista de jugadores.
 enum OrdenJugador { nombreAsc, nombreDesc, precioAsc, precioDesc, mediaAsc, mediaDesc }
 
 class BuscarJugadoresScreen extends StatefulWidget {

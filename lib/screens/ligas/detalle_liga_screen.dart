@@ -1,3 +1,33 @@
+// ─────────────────────────────────────────────────────────────────────────────
+// screens/ligas/detalle_liga_screen.dart — Shell de la liga con BottomNavBar
+//
+// Actúa como contenedor principal de todas las sub-pantallas de una liga.
+// Gestiona la navegación por pestañas y el polling de estado de la liga.
+//
+// Estructura dinámica de pantallas según el estado de la liga:
+//
+//   Estado 'pendiente' (5 pestañas):
+//     Inicio Liga | Mi Equipo | Mercado | Clasificación | Chat
+//
+//   Estado 'en_curso' o 'finalizada' (6 pestañas):
+//     Dashboard | Jornada | Mi Equipo | Mercado | Clasificación | Chat
+//
+// Polling de estado (cuando la liga está 'pendiente'):
+//   Timer.periodic cada 4 segundos → GET /api/ligas/<id>
+//   Cuando el backend cambia el estado a 'en_curso', se reconstruyen las
+//   pantallas y se cancela el timer. Esto permite detectar automáticamente
+//   cuando todos los participantes han confirmado y la liga empieza.
+//
+// FAB de búsqueda: solo visible en la pestaña del Mercado,
+//   abre BuscarJugadoresScreen para encontrar jugadores del catálogo.
+//
+// Widgets en este archivo:
+//   DetalleLigaScreen  — shell principal con BottomNavBar
+//   DashboardLigaTab   — pestaña "Inicio" cuando la liga ya está en curso:
+//                        muestra info, presupuesto, acceso a historial/mercado
+//                        y botón de abandonar liga
+//   _ActionCard        — tarjeta de acción rápida (Historial / Mercado)
+// ─────────────────────────────────────────────────────────────────────────────
 import 'dart:async';
 import 'package:flutter/material.dart';
 import '../../services/api_service.dart';
@@ -45,23 +75,29 @@ class _DetalleLigaScreenState extends State<DetalleLigaScreen> {
     super.dispose();
   }
 
+  /// Inicia un timer que consulta el estado de la liga cada 4 segundos.
+  /// Solo se activa cuando la liga está en estado 'pendiente'.
+  /// Cuando detecta que el estado cambia (todos confirmaron el inicio),
+  /// cancela el timer y reconstruye las pantallas con las 6 pestañas de liga activa.
   void _iniciarPolling() {
     _pollingTimer = Timer.periodic(const Duration(seconds: 4), (_) async {
       try {
         final liga = await ApiService.getLiga(widget.liga['id']);
         final nuevoEstado = liga['estado'] ?? 'pendiente';
         if (nuevoEstado != 'pendiente' && mounted) {
-          _pollingTimer?.cancel();
+          _pollingTimer?.cancel(); // deja de hacer polling
           setState(() {
             _estadoLiga = nuevoEstado;
-            _selectedIndex = 0;
-            _construirPantallas();
+            _selectedIndex = 0;   // vuelve a la primera pestaña
+            _construirPantallas(); // reconstruye con las 6 pestañas
           });
         }
-      } catch (_) {}
+      } catch (_) {} // ignora errores de red durante el polling
     });
   }
 
+  /// Construye la lista de pantallas y ítems del BottomNavBar según el estado.
+  /// Se llama en initState y cada vez que el estado de la liga cambia (via polling).
   void _construirPantallas() {
     final ligaId = widget.liga['id'] as int;
     final competicionId = widget.liga['competicion_id'] as int;
@@ -105,6 +141,9 @@ class _DetalleLigaScreenState extends State<DetalleLigaScreen> {
     }
   }
 
+  /// Índice de la pestaña de mercado según el estado:
+  ///   pendiente → índice 2 (3 pestañas antes del mercado)
+  ///   en_curso  → índice 3 (4 pestañas antes del mercado)
   int get _mercadoIndex => _estadoLiga == 'pendiente' ? 2 : 3;
 
   @override
@@ -189,7 +228,11 @@ class _DetalleLigaScreenState extends State<DetalleLigaScreen> {
   }
 }
 
-// Dashboard Tab
+// ── Dashboard Tab ─────────────────────────────────────────────────────────────
+// Pestaña "Inicio" que aparece cuando la liga ya está en curso o finalizada.
+// Muestra info general de la liga, el presupuesto del usuario, el código de
+// invitación y accesos rápidos a Historial y Mercado.
+// También incluye el botón "Abandonar Liga" que requiere confirmación.
 class DashboardLigaTab extends StatefulWidget {
   final int ligaId;
   final VoidCallback onNavigateToMercado;
