@@ -81,6 +81,7 @@ class AuthProvider with ChangeNotifier {
   /// Lanza excepción con el mensaje del servidor si las credenciales son incorrectas
   /// o si el email no está verificado (código 'email_no_verificado').
   Future<void> login({
+  
     required String email,
     required String password,
   }) async {
